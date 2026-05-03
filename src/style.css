@@ -1,0 +1,341 @@
+/* ⊹ CODE MIRROR PRO ⊹ styles. `cmp--` prefix; legacy .codemirror-host kept
+   for backward-compat with upstream selectors; uses ST CSS variables. */
+
+/* Dialog sizing — :has modern, .cmp--active-dialog fallback for Firefox ≤120 (upstream bug #14). */
+dialog.popup:has(.codemirror-host),
+dialog.popup.cmp--active-dialog {
+    width: unset;
+}
+
+dialog.popup.cmp--fullscreen {
+    width: 100dvw !important;
+    height: 100dvh !important;
+    max-width: 100dvw !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+.codemirror-host {
+    text-align: initial;
+    color: var(--SmartThemeBodyColor);
+    background-color: var(--black30a);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.codemirror-host .cm-editor {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+}
+
+.codemirror-host .cm-scroller {
+    overflow: auto;
+}
+
+.codemirror-host .cm-editor .cm-content {
+    font-family: var(--monoFontFamily);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.codemirror-host .cm-editor.cm-focused .cm-selectionLayer .cm-selectionBackground,
+.codemirror-host .cm-editor .cm-selectionBackground {
+    background: rgba(200, 200, 200, 0.15);
+}
+
+.codemirror-host .cm-editor .cm-cursor {
+    border-left-color: var(--SmartThemeBodyColor);
+}
+
+.codemirror-host .cm-editor input[type="checkbox"] {
+    display: inline-flex;
+}
+
+.codemirror-host .cm-editor .cm-panels {
+    background-color: var(--SmartThemeBlurTintColor);
+    color: var(--SmartThemeBodyColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    position: sticky;
+    z-index: 3;
+}
+
+.codemirror-host .cm-editor .cm-textfield {
+    background-color: var(--black30a);
+    color: var(--SmartThemeBodyColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    font-family: var(--mainFontFamily);
+    padding: 3px 5px;
+    margin: 5px 0;
+    min-height: 32px;
+    font-size: 14px;
+}
+
+.codemirror-host .cm-editor .cm-button {
+    color: var(--SmartThemeBodyColor);
+    background-color: var(--SmartThemeBlurTintColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    padding: 3px 5px;
+    cursor: pointer;
+    margin: 5px 0;
+    transition: 0.3s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background-image: none;
+}
+
+/* Toolbar */
+.cmp--toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.35));
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+}
+
+.cmp--toolbar[data-position="bottom"] {
+    border-bottom: none;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+    top: auto;
+    bottom: 0;
+    order: 2;
+}
+
+.cmp--btn-group {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.cmp--btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 32px;
+    padding: 4px 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    font-size: 13px;
+    background-image: none;
+    transition: background 0.15s;
+}
+
+.cmp--btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cmp--btn:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.cmp--btn i { pointer-events: none; }
+
+.cmp--lang-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 4px 10px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    font-size: 12px;
+    text-transform: none;
+    font-weight: 600;
+    background-image: none;
+}
+
+.cmp--lang-chip:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.cmp--status {
+    margin-left: auto;
+    font-size: 11px;
+    opacity: 0.7;
+    white-space: nowrap;
+    font-family: var(--monoFontFamily);
+    flex: 0 0 auto;
+}
+
+/* Mobile toolbar polish */
+.cmp--toolbar.cmp--mobile .cmp--btn-label {
+    display: none;
+}
+.cmp--toolbar.cmp--mobile .cmp--btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 4px 10px;
+    justify-content: center;
+}
+.cmp--toolbar.cmp--mobile .cmp--status {
+    display: none;
+}
+.cmp--toolbar.cmp--mobile .cmp--lang-chip {
+    min-height: 40px;
+    padding: 4px 12px;
+}
+
+/* Mobile: avoid iOS auto-zoom on input focus */
+@media (pointer: coarse) {
+    .codemirror-host .cm-editor .cm-content,
+    .codemirror-host .cm-editor .cm-textfield {
+        font-size: 16px;
+    }
+}
+
+/* Lang picker menu */
+.cmp--lang-menu {
+    position: fixed;
+    background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.95));
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 6px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    z-index: 99999;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+.cmp--lang-item {
+    text-align: left;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    min-height: 36px;
+    background-image: none;
+}
+
+.cmp--lang-item:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.cmp--lang-item.cmp--active {
+    background: rgba(255,255,255,0.14);
+    font-weight: 700;
+}
+
+/* Quick settings popover */
+.cmp--quick-settings {
+    position: absolute;
+    top: 44px;
+    right: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.95));
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    padding: 10px 12px;
+    z-index: 20;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
+    max-width: 280px;
+}
+
+.cmp--quick-settings .cmp--row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.cmp--quick-settings input[type="number"],
+.cmp--quick-settings select {
+    min-width: 100px;
+    padding: 3px 6px;
+    background: var(--black30a);
+    color: var(--SmartThemeBodyColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 4px;
+}
+
+/* Settings drawer */
+.cmp--settings .cmp--section {
+    margin: 10px 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.cmp--settings .cmp--section:last-child {
+    border-bottom: none;
+}
+
+.cmp--settings .cmp--section h4 {
+    margin: 8px 0 6px;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.cmp--settings .cmp--row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.cmp--settings .cmp--row.cmp--check {
+    justify-content: flex-start;
+}
+
+.cmp--settings .cmp--row.cmp--check input[type="checkbox"] {
+    flex: 0 0 auto;
+}
+
+.cmp--settings select,
+.cmp--settings input[type="number"] {
+    min-width: 140px;
+    padding: 4px 6px;
+    background: var(--black30a);
+    color: var(--SmartThemeBodyColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 4px;
+}
+
+.cmp--settings .cmp--lang-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px 12px;
+    margin-top: 4px;
+}
+
+/* Safe-area for notched mobile */
+.cmp--toolbar {
+    padding-top: max(6px, env(safe-area-inset-top, 6px));
+}
+
+/* Drop legacy absolute-positioned search button (replaced by toolbar) */
+.codemirror-host .cm-search-button { display: none !important; }

@@ -1,0 +1,45 @@
+{
+  "name": "codemirrorpro",
+  "version": "2.0.0",
+  "description": "A fancier, mobile-friendly expanded text editor for SillyTavern. Fork of Extension-CodeMirror by Cohee1207.",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aceeenvw/codemirrorpro.git"
+  },
+  "homepage": "https://github.com/aceeenvw/codemirrorpro#readme",
+  "bugs": {
+    "url": "https://github.com/aceeenvw/codemirrorpro/issues"
+  },
+  "license": "AGPL-3.0-or-later",
+  "author": "aceenvw",
+  "contributors": [
+    "Cohee1207 (upstream)"
+  ],
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.18.3",
+    "@codemirror/commands": "^6.7.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/lang-markdown": "^6.3.1",
+    "@codemirror/language": "^6.10.8",
+    "@codemirror/search": "^6.5.8",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/view": "^6.36.1",
+    "@lezer/highlight": "^1.2.1",
+    "codemirror": "^6.0.1",
+    "css-loader": "^7.1.2",
+    "style-loader": "^4.0.0"
+  },
+  "scripts": {
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "watch": "webpack --mode development --watch"
+  },
+  "devDependencies": {
+    "terser-webpack-plugin": "^5.3.10",
+    "webpack-cli": "^5.1.4"
+  }
+}

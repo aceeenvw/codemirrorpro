@@ -1,0 +1,19 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Misc
+.DS_Store
+.env*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Note: /dist is intentionally committed — SillyTavern loads dist/index.js
+# directly from the repo on install-from-URL.

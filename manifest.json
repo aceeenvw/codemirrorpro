@@ -1,0 +1,16 @@
+{
+    "display_name": "\u22B9 CODE MIRROR PRO \u22B9",
+    "loading_order": 999,
+    "requires": [],
+    "optional": [],
+    "js": "dist/index.js",
+    "css": "",
+    "author": "aceenvw",
+    "version": "2.0.0",
+    "homePage": "https://github.com/aceeenvw/codemirrorpro",
+    "auto_update": true,
+    "i18n": {
+        "en-us": "i18n/en-us.json",
+        "ru-ru": "i18n/ru-ru.json"
+    }
+}
