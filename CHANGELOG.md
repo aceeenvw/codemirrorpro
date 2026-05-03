@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.2 — Fullscreen hardening + debug mode (2026-05)
+
+### ✦ Bug fixes
+
+- **Fullscreen button was closing the dialog entirely** (not just collapsing). Root cause: SillyTavern's popup JS reacts to `click`/`pointerdown` events bubbling up from inside the dialog and/or to class/style mutations on `dialog.popup`, and invokes `dialog.close()`. Fixed with a multi-layered defense:
+  1. **Capture-phase event firewall** on the toolbar root — stops `pointerdown`, `mousedown`, `click`, `touchstart`, `touchend` from bubbling to ST's dialog-level delegates at capture time.
+  2. **Per-button propagation stops** on `pointerdown`, `mousedown`, `click`, `touchstart` so ST's delegates never see our button interactions regardless of event phase.
+  3. **`dialog.close()` shield window** — temporarily monkey-patches `dialog.close` to a no-op for ~200ms around the fullscreen toggle, so any ST handler that tries to close the dialog in response to our class/style mutation is silently blocked. Original method restored after the window.
+  4. **`cancel` event guard** — captures and preventDefaults native dialog-cancel events during the same window.
+  5. Buttons marked `formnovalidate` + `formmethod="get"` to neutralize any implicit form-submit dialog-close coupling.
+
+### ✦ Developer features
+
+- **Debug mode** — set `window.CMP_DEBUG = true` in the browser console before clicking the fullscreen button to get detailed `[cmp:fs]` logs: click target, dialog `open`/`isConnected` state, every class/style mutation on the dialog, any dialog-close attempts intercepted by the shield, and the result of the toggle. Turn off with `window.CMP_DEBUG = false`.
+
+---
+
 ## 2.0.1 — Fullscreen + locale fix (2026-05)
 
 ### ✦ Bug fixes
