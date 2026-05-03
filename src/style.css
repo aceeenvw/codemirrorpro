@@ -533,3 +533,322 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 
 /* Drop legacy absolute-positioned search button (replaced by toolbar) */
 .codemirror-host .cm-search-button { display: none !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   Custom search/replace panel
+   ══════════════════════════════════════════════════════════════════ */
+.cmp-sp {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.96));
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
+    font-family: var(--mainFontFamily);
+    animation: cmp-sp-slide 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes cmp-sp-slide {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.cm-panels-bottom .cmp-sp {
+    border-bottom: none;
+    border-top: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
+}
+
+.cmp-sp--row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+/* Field = input wrapper with embedded toggles + count */
+.cmp-sp--field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 4%, transparent);
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 20%, transparent);
+    border-radius: 8px;
+    transition:
+        border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cmp-sp--field:focus-within {
+    border-color: var(--SmartThemeQuoteColor, #8ab4f8);
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 8%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 20%, transparent);
+}
+
+.cmp-sp--input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--SmartThemeBodyColor);
+    font-size: 14px;
+    font-family: var(--monoFontFamily);
+    line-height: 1.4;
+    min-height: 36px;
+}
+
+.cmp-sp--input::placeholder {
+    color: color-mix(in srgb, var(--SmartThemeBodyColor) 45%, transparent);
+}
+
+/* Inline icon toggles (case / word / regex) */
+.cmp-sp--toggles {
+    display: flex;
+    gap: 2px;
+    padding: 2px 4px;
+    border-left: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 12%, transparent);
+    flex: 0 0 auto;
+}
+
+.cmp-sp--toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 4px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: color-mix(in srgb, var(--SmartThemeBodyColor) 55%, transparent);
+    cursor: pointer;
+    font-size: 12px;
+    transition:
+        background-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+        color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+        transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.cmp-sp--toggle:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 10%, transparent);
+    color: var(--SmartThemeBodyColor);
+}
+
+.cmp-sp--toggle:active { transform: scale(0.92); }
+
+.cmp-sp--toggle:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    outline-offset: 1px;
+}
+
+.cmp-sp--toggle.cmp-sp--toggle-on {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 22%, transparent);
+    color: var(--SmartThemeQuoteColor, #8ab4f8);
+}
+
+.cmp-sp--toggle i { pointer-events: none; }
+
+/* Match count */
+.cmp-sp--count {
+    flex: 0 0 auto;
+    padding: 0 10px 0 6px;
+    font-size: 11px;
+    font-family: var(--monoFontFamily);
+    font-variant-numeric: tabular-nums;
+    color: color-mix(in srgb, var(--SmartThemeBodyColor) 60%, transparent);
+    white-space: nowrap;
+}
+
+.cmp-sp--count-nomatch {
+    color: #e06c75;
+}
+
+/* Control column right of field */
+.cmp-sp--ctrls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.cmp-sp--iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    font-size: 13px;
+    transition:
+        background-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+        transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.cmp-sp--iconbtn:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 12%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
+}
+
+.cmp-sp--iconbtn:active { transform: scale(0.94); }
+
+.cmp-sp--iconbtn:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    outline-offset: 2px;
+}
+
+.cmp-sp--iconbtn i { pointer-events: none; }
+
+.cmp-sp--close:hover {
+    background: color-mix(in srgb, #e06c75 25%, transparent);
+    color: #fff;
+    border-color: color-mix(in srgb, #e06c75 35%, transparent);
+}
+
+/* Text buttons (replace / replace all) */
+.cmp-sp--btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 6px 14px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 20%, transparent);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+        background-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+        transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.cmp-sp--btn:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 10%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeBodyColor) 32%, transparent);
+}
+
+.cmp-sp--btn:active { transform: scale(0.97); }
+
+.cmp-sp--btn:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    outline-offset: 2px;
+}
+
+.cmp-sp--btn-primary {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 18%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 35%, transparent);
+    color: var(--SmartThemeQuoteColor, #8ab4f8);
+    font-weight: 600;
+}
+
+.cmp-sp--btn-primary:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 28%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 50%, transparent);
+}
+
+/* ─── Mobile bottom-sheet layout ─────────────────────────────── */
+.cmp-sp--mobile {
+    padding: 12px;
+    gap: 10px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+}
+
+.cmp-sp--mobile .cmp-sp--row {
+    flex-wrap: wrap;
+}
+
+.cmp-sp--mobile .cmp-sp--field {
+    flex: 1 1 100%;
+    order: 1;
+}
+
+.cmp-sp--mobile .cmp-sp--ctrls {
+    flex: 1 1 100%;
+    order: 2;
+    justify-content: space-between;
+}
+
+.cmp-sp--mobile .cmp-sp--input {
+    font-size: 16px; /* prevent iOS zoom */
+    min-height: 44px;
+    padding: 10px 12px;
+}
+
+.cmp-sp--mobile .cmp-sp--iconbtn {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 15px;
+}
+
+.cmp-sp--mobile .cmp-sp--toggle {
+    min-width: 36px;
+    min-height: 36px;
+    font-size: 13px;
+}
+
+.cmp-sp--mobile .cmp-sp--btn {
+    min-height: 44px;
+    padding: 10px 16px;
+    flex: 1 1 auto;
+    font-size: 14px;
+}
+
+.cmp-sp--mobile .cmp-sp--close {
+    margin-left: auto;
+}
+
+.cmp-sp--mobile .cmp-sp--count {
+    flex: 1 1 100%;
+    order: 3;
+    text-align: center;
+    padding: 4px 0 0;
+    font-size: 12px;
+}
+
+/* Hide the default CM6 search panel styling in favor of ours. */
+.codemirror-host .cm-panel.cm-search {
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+.codemirror-host .cm-panel.cm-search > :not(.cmp-sp) {
+    display: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .cmp-sp { animation: none; }
+    .cmp-sp--toggle,
+    .cmp-sp--iconbtn,
+    .cmp-sp--btn {
+        transition: none;
+    }
+    .cmp-sp--toggle:active,
+    .cmp-sp--iconbtn:active,
+    .cmp-sp--btn:active {
+        transform: none;
+    }
+}

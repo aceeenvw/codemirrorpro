@@ -4,6 +4,7 @@ import { indentOnInput, bracketMatching } from '@codemirror/language';
 import { history, defaultKeymap, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import { cmpSearch } from './search-panel.js';
 
 import { buildPayload, stableId } from './build-info.js';
 import { getSettings, onSettingsChange, saveSettings } from './settings.js';
@@ -74,6 +75,7 @@ export function setupCodeMirror(target, dialog) {
             EditorState.allowMultipleSelections.of(true),
             indentOnInput(),
             highlightSelectionMatches(),
+            cmpSearch(),
             keymap.of([
                 ...closeBracketsKeymap,
                 ...defaultKeymap,

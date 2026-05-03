@@ -137,9 +137,8 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         editor.focus();
         openSearchPanel(editor);
         setTimeout(() => {
-            const panel = dialog.querySelector('.cm-panel.cm-search');
-            const replaceInput = panel?.querySelector('input[name="replace"]');
-            replaceInput?.focus();
+            const panel = dialog.querySelector('.cmp-sp');
+            panel?.querySelector('input[name="replace"]')?.focus();
         }, 40);
     });
 

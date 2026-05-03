@@ -1,5 +1,61 @@
 # Changelog
 
+## 2.2.0 — Custom search & replace panel (2026-05)
+
+Replaced CodeMirror 6's default search panel with a custom implementation via `search({ createPanel })`. The default CM6 panel's cramped horizontal layout, tiny inputs, and awkward mobile behavior were the root of the discomfort — not a problem fixable by CSS alone.
+
+### ✦ Desktop layout
+
+- **Two-row layout** instead of cramped horizontal inputs:
+  - Row 1: `[Find input with inline toggles & count] [↑ Prev] [↓ Next] [× Close]`
+  - Row 2: `[Replace input] [Replace] [Replace all]`
+- **Inline icon toggles** inside the find input (match case `Aa`, whole word `W`, regex `*`) with clear on/off states using the accent color. No more guessing which tiny checkbox is which.
+- **Live match count** (`3 of 14` or `No results`) beside the find input, with tabular numerals so it never jitters.
+- **Replace all** is rendered as the primary (accent-filled) action. Replace-one is secondary.
+- **Focus-ring on the field wrapper** — the whole search input lights up with a 3px glow on focus, not just the tiny input itself.
+
+### ✦ Mobile bottom-sheet layout
+
+- **Full-width bottom sheet** (panel docks at bottom on mobile instead of top, so the keyboard doesn't push it off-screen).
+- **Vertical stacking**: each row stretches to 100% width; Find/Replace inputs are full-width, buttons are distributed with `flex: 1` so they fill available space comfortably.
+- **44×44pt touch targets** on every button and toggle.
+- **16px input font** to prevent iOS focus-zoom.
+- **Safe-area padding** on the bottom so the sheet clears the home indicator.
+- **Count rendered on its own line** centered, so there's no squeeze.
+
+### ✦ Keyboard shortcuts
+
+- `Ctrl+F` — open search, focus find input, select existing query
+- `Ctrl+H` — open search, focus replace input
+- `Enter` in find → next match. `Shift+Enter` → previous match
+- `Enter` in replace → replace current. `Ctrl+Enter` → replace all
+- `Esc` anywhere in panel → close
+- Debounced 80ms search-as-you-type so long queries don't thrash large documents
+
+### ✦ Accessibility
+
+- `role="search"` on the panel, ARIA `aria-pressed` on toggles, `aria-label` / localized `title` on every icon button
+- Focus-visible outlines on every interactive element (previously absent on CM defaults)
+- Screen readers announce the match count text
+- All labels and titles are fully localized and live-update on language change
+
+### ✦ Visual
+
+- Backdrop-blurred panel matching the toolbar aesthetic
+- Slide-in animation (160ms, respects `prefers-reduced-motion`)
+- Red hover state on the close button signals the destructive-ish action
+- All color uses `color-mix` against SmartTheme CSS variables so it fits every ST theme
+- Old CM6 default panel DOM is hidden via `.cm-panel.cm-search > :not(.cmp-sp) { display: none }` as a safety net
+
+### ✦ Under the hood
+
+- New module: `src/search-panel.js` implements `createPanel` for `@codemirror/search`
+- New i18n keys: `cmp.search.find_placeholder`, `replace_placeholder`, `match_case`, `whole_word`, `regex`, `previous`, `next`, `close`, `replace_one`, `replace_all`, `no_results`, `count_of`, `count_total` (EN + RU)
+- `countMatches()` uses `SearchCursor` / `RegExpCursor` directly so count is exact and tracks the currently-selected match index
+- Toolbar Replace button now targets `.cmp-sp input[name="replace"]` instead of the old `.cm-panel.cm-search` selector
+
+---
+
 ## 2.1.0 — Toolbar UI/UX polish (2026-05)
 
 ### ✦ UX overhaul
