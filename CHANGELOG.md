@@ -48,7 +48,6 @@ First release of ⊹ CODE MIRROR PRO ⊹ — maintained fork of
 - Self-contained themes built from `@lezer/highlight` tags — zero external theme dependencies, smaller bundle than using community theme packs.
 - `manifest.json` now declares `i18n` block per SillyTavern 1.12+ convention.
 - `auto_update: true` preserved.
-- New `.github/workflows/build.yml` auto-rebuilds `dist/index.js` on push to `master`, keeping the committed bundle in sync with source.
 - `npm run build:dev` and `npm run watch` added alongside `npm run build`.
 
 ---
