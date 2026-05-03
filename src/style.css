@@ -137,8 +137,8 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 .cmp--toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: 8px;
+    padding: 6px 10px;
     background: linear-gradient(to bottom,
         color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(0,0,0,0.45)) 90%, transparent),
         var(--SmartThemeBlurTintColor, rgba(0,0,0,0.35)));
@@ -172,13 +172,16 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     min-width: 0;
 }
 
+/* Rhythm: 2px between buttons inside a group, 8px total between groups
+   (2px group-gap + 1px separator + 5px margins). Keeps clusters visually
+   distinct without forming gaps that look like missing buttons. */
 .cmp--sep {
     flex: 0 0 auto;
     width: 1px;
-    height: 22px;
-    margin: 0 6px;
+    height: 20px;
+    margin: 0 3px;
     background: var(--SmartThemeBorderColor);
-    opacity: 0.5;
+    opacity: 0.45;
     border-radius: 1px;
 }
 
@@ -356,20 +359,21 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     }
 }
 
-/* Mobile status bar: pinned strip below the editor content. */
+/* Bottom status strip. Compact — content's min-height + padding ≈ 22px. */
 .cmp--statusbar {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding: 4px 10px;
-    padding-bottom: max(4px, env(safe-area-inset-bottom, 4px));
-    border-top: 1px solid var(--SmartThemeBorderColor);
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.35));
-    font-size: 11px;
+    padding: 2px 10px;
+    padding-bottom: max(2px, env(safe-area-inset-bottom, 2px));
+    border-top: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 15%, transparent);
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.25));
+    font-size: 10.5px;
     font-family: var(--monoFontFamily);
-    opacity: 0.8;
-    min-height: 28px;
+    opacity: 0.75;
+    min-height: 20px;
+    line-height: 1.2;
     z-index: 2;
 }
 

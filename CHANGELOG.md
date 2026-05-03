@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.2.3 — Spacing rhythm + tighter status strip (2026-05)
+
+### ✦ Polish
+
+- **Even icon spacing across toolbar groups.** Previously: `gap: 2px` between buttons inside a group, but separators added `margin: 0 6px` on both sides — 14px total around a separator vs 2px between adjacent buttons, producing an uneven visual rhythm. Now: `gap: 2px` within group + separator `margin: 0 3px` = consistent 8px between groups (2 + 1 + 3+3 = 9 effective), 2px within. Groups are visually distinct without feeling like buttons are missing.
+- **Toolbar container gap** reduced from `10px` → `8px`, vertical padding from `8px` → `6px`. Trims ~4px off the toolbar height.
+- **Separator** shortened from `height: 22px` → `20px` and opacity from `0.5` → `0.45` for a softer cluster-separator.
+
+### ✦ Layout
+
+- **Status strip height reduced**: `min-height: 28px` → `20px`, padding `4px 10px` → `2px 10px`, font size `11px` → `10.5px`, opacity `0.8` → `0.75`. Gains roughly 10px of vertical space back for the code. Still readable, still shows position + chars, just doesn't eat as much real estate.
+- **Status border-top** switched from SmartTheme border var to a soft `color-mix` against body color (15%) for a gentler divider that adapts per theme.
+
+Net effect: code area gained ~14px of vertical space; button spacing is visually balanced.
+
+---
+
 ## 2.2.2 — Toolbar icons-only + status bar at bottom everywhere (2026-05)
 
 ### ✦ UX
