@@ -235,25 +235,36 @@ function openQuickSettings(editor, host, dialog, applyFn) {
         applyFn(next);
     });
     pop.addEventListener('click', e => e.stopPropagation());
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', t('cmp.toolbar.settings'));
     host.appendChild(pop);
     const off = (e) => {
-        if (!pop.contains(e.target)) {
-            pop.remove();
-            document.removeEventListener('mousedown', off, true);
-        }
+        if (!pop.contains(e.target)) close();
     };
-    setTimeout(() => document.addEventListener('mousedown', off, true), 0);
+    const onEsc = (e) => { if (e.key === 'Escape') close(); };
+    const close = () => {
+        pop.remove();
+        document.removeEventListener('mousedown', off, true);
+        document.removeEventListener('keydown', onEsc, true);
+    };
+    setTimeout(() => {
+        document.addEventListener('mousedown', off, true);
+        document.addEventListener('keydown', onEsc, true);
+    }, 0);
 }
 
 function openLangPicker(anchor, current, onPick) {
     const ids = ['plain', 'css', 'markdown', 'html', 'json', 'javascript'];
     const menu = document.createElement('div');
     menu.className = 'cmp--lang-menu';
+    menu.setAttribute('role', 'menu');
     ids.forEach(id => {
         const item = document.createElement('button');
         item.type = 'button';
+        item.setAttribute('role', 'menuitem');
         item.className = 'cmp--lang-item' + (id === current ? ' cmp--active' : '');
         item.textContent = id === 'plain' ? t('cmp.settings.language_plain') : id.toUpperCase();
+        if (id === current) item.setAttribute('aria-current', 'true');
         item.addEventListener('click', (e) => {
             e.preventDefault();
             menu.remove();
@@ -261,15 +272,33 @@ function openLangPicker(anchor, current, onPick) {
         });
         menu.appendChild(item);
     });
-    const rect = anchor.getBoundingClientRect();
     document.body.appendChild(menu);
-    menu.style.top = `${rect.bottom + 4}px`;
-    menu.style.left = `${rect.left}px`;
+    const rect = anchor.getBoundingClientRect();
+    const m = menu.getBoundingClientRect();
+    const vw = innerWidth;
+    const vh = innerHeight;
+    let top = rect.bottom + 6;
+    let left = rect.left;
+    if (left + m.width > vw - 8) left = Math.max(8, vw - m.width - 8);
+    if (top + m.height > vh - 8) top = Math.max(8, rect.top - m.height - 6);
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
     const off = (e) => {
         if (!menu.contains(e.target) && e.target !== anchor) {
             menu.remove();
             document.removeEventListener('mousedown', off, true);
+            document.removeEventListener('keydown', onEsc, true);
         }
     };
-    setTimeout(() => document.addEventListener('mousedown', off, true), 0);
+    const onEsc = (e) => {
+        if (e.key === 'Escape') {
+            menu.remove();
+            document.removeEventListener('mousedown', off, true);
+            document.removeEventListener('keydown', onEsc, true);
+        }
+    };
+    setTimeout(() => {
+        document.addEventListener('mousedown', off, true);
+        document.addEventListener('keydown', onEsc, true);
+    }, 0);
 }

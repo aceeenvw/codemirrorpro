@@ -124,21 +124,27 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     background-image: none;
 }
 
-/* Toolbar */
+/* ── Toolbar shell ────────────────────────────────────────────── */
 .cmp--toolbar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.35));
+    gap: 10px;
+    padding: 8px 10px;
+    background: linear-gradient(to bottom,
+        color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(0,0,0,0.45)) 90%, transparent),
+        var(--SmartThemeBlurTintColor, rgba(0,0,0,0.35)));
     border-bottom: 1px solid var(--SmartThemeBorderColor);
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
     flex-wrap: nowrap;
     overflow-x: auto;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     position: sticky;
     top: 0;
     z-index: 4;
 }
+.cmp--toolbar::-webkit-scrollbar { display: none; }
 
 .cmp--toolbar[data-position="bottom"] {
     border-bottom: none;
@@ -148,82 +154,199 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     order: 2;
 }
 
+/* ── Button groups + separators ───────────────────────────────── */
 .cmp--btn-group {
     display: flex;
-    gap: 4px;
+    gap: 2px;
     align-items: center;
     flex: 1 1 auto;
     min-width: 0;
 }
 
+.cmp--sep {
+    flex: 0 0 auto;
+    width: 1px;
+    height: 22px;
+    margin: 0 6px;
+    background: var(--SmartThemeBorderColor);
+    opacity: 0.5;
+    border-radius: 1px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────── */
 .cmp--btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    min-height: 32px;
-    padding: 4px 8px;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 4px;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
     background: transparent;
     color: var(--SmartThemeBodyColor);
     cursor: pointer;
     font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    line-height: 1;
     background-image: none;
-    transition: background 0.15s;
+    transition:
+        background-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+        transform 120ms cubic-bezier(0.4, 0, 0.2, 1),
+        color 160ms cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.cmp--btn i {
+    pointer-events: none;
+    font-size: 14px;
+    line-height: 1;
+    width: 14px;
+    text-align: center;
 }
 
 .cmp--btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 12%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
 }
 
 .cmp--btn:active {
-    background: rgba(255, 255, 255, 0.15);
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 20%, transparent);
+    transform: scale(0.96);
 }
 
-.cmp--btn i { pointer-events: none; }
+.cmp--btn:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    outline-offset: 2px;
+}
 
+.cmp--btn:disabled,
+.cmp--btn[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Toggle-active state (e.g. fullscreen engaged) */
+.cmp--btn.cmp--btn-active {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 22%, transparent);
+    color: var(--SmartThemeQuoteColor, #8ab4f8);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 35%, transparent);
+}
+
+/* Accent variant — for the settings gear */
+.cmp--btn.cmp--btn-accent {
+    color: var(--SmartThemeQuoteColor, #8ab4f8);
+}
+.cmp--btn.cmp--btn-accent:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 18%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 30%, transparent);
+}
+
+/* ── Language chip ─────────────────────────────────────────────── */
 .cmp--lang-chip {
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     min-height: 32px;
-    padding: 4px 10px;
-    border: 1px solid var(--SmartThemeBorderColor);
+    padding: 4px 12px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 20%, transparent);
     border-radius: 999px;
-    background: transparent;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 6%, transparent);
     color: var(--SmartThemeBodyColor);
     cursor: pointer;
-    font-size: 12px;
-    text-transform: none;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     font-weight: 600;
     background-image: none;
+    transition:
+        background-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+        transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.cmp--lang-chip i {
+    font-size: 10px;
+    opacity: 0.7;
 }
 
 .cmp--lang-chip:hover {
-    background: rgba(255,255,255,0.08);
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 14%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeBodyColor) 30%, transparent);
 }
 
+.cmp--lang-chip:active {
+    transform: scale(0.96);
+}
+
+.cmp--lang-chip:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    outline-offset: 2px;
+}
+
+/* ── Status (desktop inline) ───────────────────────────────────── */
 .cmp--status {
     margin-left: auto;
     font-size: 11px;
-    opacity: 0.7;
+    opacity: 0.6;
     white-space: nowrap;
     font-family: var(--monoFontFamily);
     flex: 0 0 auto;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
 }
 
-/* Mobile toolbar polish */
+/* ── Mobile toolbar ────────────────────────────────────────────── */
+.cmp--toolbar.cmp--mobile {
+    gap: 6px;
+    padding: 8px;
+}
 .cmp--toolbar.cmp--mobile .cmp--btn-label {
     display: none;
 }
 .cmp--toolbar.cmp--mobile .cmp--btn {
     min-height: 44px;
     min-width: 44px;
-    padding: 4px 10px;
-    justify-content: center;
+    padding: 4px;
+    border-radius: 10px;
+}
+.cmp--toolbar.cmp--mobile .cmp--btn i {
+    font-size: 16px;
+    width: 16px;
 }
 .cmp--toolbar.cmp--mobile .cmp--status {
     display: none;
+}
+.cmp--toolbar.cmp--mobile .cmp--sep {
+    margin: 0 3px;
+    height: 20px;
+}
+.cmp--toolbar.cmp--mobile .cmp--lang-chip {
+    min-height: 40px;
+    padding: 4px 14px;
+    font-size: 11px;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .cmp--btn,
+    .cmp--lang-chip {
+        transition: none;
+    }
+    .cmp--btn:active,
+    .cmp--lang-chip:active {
+        transform: none;
+    }
 }
 
 /* Mobile status bar: pinned strip below the editor content. */
@@ -247,10 +370,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-.cmp--toolbar.cmp--mobile .cmp--lang-chip {
-    min-height: 40px;
-    padding: 4px 12px;
+    opacity: 0.75;
 }
 
 /* Mobile: avoid iOS auto-zoom on input focus */
@@ -261,58 +381,80 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     }
 }
 
-/* Lang picker menu */
+/* ── Language picker menu ──────────────────────────────────────── */
 .cmp--lang-menu {
     position: fixed;
-    background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.95));
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 6px;
-    padding: 4px;
+    background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.96));
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
+    border-radius: 10px;
+    padding: 6px;
     display: flex;
     flex-direction: column;
-    min-width: 140px;
+    min-width: 160px;
     z-index: 99999;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
+    animation: cmp-pop-in 140ms cubic-bezier(0.2, 0, 0, 1);
+    transform-origin: top left;
+}
+
+@keyframes cmp-pop-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .cmp--lang-item {
     text-align: left;
-    padding: 6px 10px;
+    padding: 8px 12px;
     border: none;
     background: transparent;
     color: var(--SmartThemeBodyColor);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 13px;
-    min-height: 36px;
+    font-weight: 500;
+    min-height: 40px;
     background-image: none;
+    transition: background-color 120ms ease-out;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .cmp--lang-item:hover {
-    background: rgba(255,255,255,0.08);
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 12%, transparent);
+}
+
+.cmp--lang-item:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    outline-offset: -2px;
 }
 
 .cmp--lang-item.cmp--active {
-    background: rgba(255,255,255,0.14);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 22%, transparent);
+    color: var(--SmartThemeQuoteColor, #8ab4f8);
     font-weight: 700;
 }
 
-/* Quick settings popover */
+/* ── Quick settings popover ────────────────────────────────────── */
 .cmp--quick-settings {
     position: absolute;
-    top: 44px;
-    right: 8px;
-    background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.95));
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 8px;
-    padding: 10px 12px;
+    top: 50px;
+    right: 10px;
+    background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.96));
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
+    border-radius: 12px;
+    padding: 12px 14px;
     z-index: 20;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 220px;
-    max-width: 280px;
+    gap: 8px;
+    min-width: 240px;
+    max-width: 300px;
+    animation: cmp-pop-in 140ms cubic-bezier(0.2, 0, 0, 1);
+    transform-origin: top right;
 }
 
 .cmp--quick-settings .cmp--row {

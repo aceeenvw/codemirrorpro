@@ -1,5 +1,45 @@
 # Changelog
 
+## 2.1.0 — Toolbar UI/UX polish (2026-05)
+
+### ✦ UX overhaul
+
+- **Logical button grouping**: buttons are now clustered by function with thin vertical separators between groups:
+  - History: Undo · Redo
+  - Search: Find · Replace
+  - Clipboard: Paste · Copy
+  - View: Fullscreen · Settings
+  Previously all 8 buttons sat in one undifferentiated row.
+- **Comfortable sizing**: desktop buttons bumped from 32×32px to 36px min-height with 10px horizontal padding; mobile from 44×44 to 44×44 with larger radius (10px) for a softer touch target.
+- **Settings button accent**: the gear button is rendered in the theme's quote-color (accent) to signal it's the entry point to customization, not just another tool.
+- **Active-state pill** for toggle buttons (fullscreen engaged): fills with a translucent accent-color background and changes the icon color so the user can see at a glance that they're in fullscreen mode. `aria-pressed` set correctly for screen readers.
+
+### ✦ Visual polish
+
+- **Backdrop-blurred toolbar**: 8px blur + 140% saturation behind the toolbar with a subtle vertical gradient, following the SillyTavern dialog aesthetic.
+- **Softer corners**: button radius 4px → 8px, chip radius stays at 999px, toolbar popovers 12px.
+- **Language chip**: now uses uppercase 11px letter-spacing-0.04em text on a subtle surface-tinted pill — more clearly "status + clickable" vs the previous flat outline.
+- **Tabular numerals** on the status bar so position doesn't jitter as digits change (`font-variant-numeric: tabular-nums`).
+- **Scrollbar hidden** on the toolbar overflow path — swipe works on mobile, wheel works on desktop, no ugly 17px gray rail.
+- **Popovers animate in** with a 140ms pop-in (opacity + translateY + scale) using the Material easing curve `cubic-bezier(0.2, 0, 0, 1)`.
+
+### ✦ Interaction quality
+
+- **Scale-on-press** (`transform: scale(0.96)`) for buttons and chip, 120ms settle. Matches Apple HIG "scale feedback" and Material press-state layers without a ripple lib.
+- **Color-mix press/hover states** using `color-mix(in srgb, var(--SmartThemeBodyColor) N%, transparent)` so states adapt correctly in every ST theme without hardcoded rgba values.
+- **Focus-visible rings** (2px solid accent, 2px offset) on every button, chip, and popover item — meets WCAG 2.4.7 and Apple HIG "Focus States". Previously no keyboard-focus indication at all.
+- **Reduced-motion respect**: `@media (prefers-reduced-motion: reduce)` disables all transitions and scale transforms. Users with vestibular sensitivity are honored per WCAG 2.3.3.
+- **Touch tuning**: `-webkit-tap-highlight-color: transparent`, `touch-action: manipulation` (kills 300ms tap delay on mobile), `user-select: none`.
+
+### ✦ Popovers
+
+- **Viewport-aware positioning**: language picker and quick-settings popovers now flip above or shift horizontally if they would overflow the viewport.
+- **Escape to close**: `Esc` now dismisses both popovers. Click-outside still works.
+- **ARIA semantics**: lang picker is `role="menu"` with `role="menuitem"` children and `aria-current="true"` on the active language. Quick-settings popover is `role="dialog"` with localized `aria-label`.
+- **Drop-shadow refined**: two-layer shadow (12px spread + 2px sharpness) replaces the previous flat `0 6px 20px` for more depth on top of blurred backgrounds.
+
+---
+
 ## 2.0.3 — Status bar cosmetics + cleanup (2026-05)
 
 ### ✦ Bug fixes

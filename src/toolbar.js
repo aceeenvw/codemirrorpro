@@ -124,6 +124,11 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const btnGroup = document.createElement('div');
     btnGroup.className = 'cmp--btn-group';
 
+    // Group: history (undo / redo).
+    const bUndo = mkBtn('fa-solid fa-rotate-left', 'cmp.toolbar.undo', () => { undo(editor); editor.focus(); });
+    const bRedo = mkBtn('fa-solid fa-rotate-right', 'cmp.toolbar.redo', () => { redo(editor); editor.focus(); });
+
+    // Group: search.
     const bSearch = mkBtn('fa-solid fa-magnifying-glass', 'cmp.toolbar.search', () => {
         editor.focus();
         openSearchPanel(editor);
@@ -137,15 +142,18 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
             replaceInput?.focus();
         }, 40);
     });
+
+    // Group: clipboard.
     const bPaste = mkBtn('fa-solid fa-paste', 'cmp.toolbar.paste', () => pasteIntoEditor(editor));
     const bCopy = mkBtn('fa-solid fa-copy', 'cmp.toolbar.copy', () => copyAll(editor));
-    const bUndo = mkBtn('fa-solid fa-rotate-left', 'cmp.toolbar.undo', () => { undo(editor); editor.focus(); });
-    const bRedo = mkBtn('fa-solid fa-rotate-right', 'cmp.toolbar.redo', () => { redo(editor); editor.focus(); });
-    // Fullscreen: toggle + observer to re-assert inline styles if ST rewrites them.
+
+    // Group: view.
     let fsGuard = null;
     const bFull = mkBtn('fa-solid fa-expand', 'cmp.toolbar.fullscreen', () => {
         const on = toggleFullscreen(dialog);
         bFull.querySelector('i').className = on ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+        bFull.setAttribute('aria-pressed', String(on));
+        bFull.classList.toggle('cmp--btn-active', on);
         bFull.setAttribute('data-i18n-title', on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
         bFull.title = t(on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
         fsGuard?.disconnect();
@@ -158,9 +166,24 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
             fsGuard.observe(dialog, { attributes: true, attributeFilter: ['style', 'class'] });
         }
     });
-    const bSettings = mkBtn('fa-solid fa-gear', 'cmp.toolbar.settings', () => onSettingsClick?.(bSettings));
+    const bSettings = mkBtn('fa-solid fa-gear', 'cmp.toolbar.settings', () => onSettingsClick?.(bSettings), 'cmp--btn-accent');
 
-    [bSearch, bReplace, bPaste, bCopy, bUndo, bRedo, bFull, bSettings].forEach(b => btnGroup.appendChild(b));
+    // Assemble with visual separators between groups.
+    const groups = [
+        [bUndo, bRedo],
+        [bSearch, bReplace],
+        [bPaste, bCopy],
+        [bFull, bSettings],
+    ];
+    groups.forEach((group, idx) => {
+        if (idx > 0) {
+            const sep = document.createElement('span');
+            sep.className = 'cmp--sep';
+            sep.setAttribute('aria-hidden', 'true');
+            btnGroup.appendChild(sep);
+        }
+        group.forEach(b => btnGroup.appendChild(b));
+    });
 
     const status = document.createElement('div');
     status.className = 'cmp--status';
