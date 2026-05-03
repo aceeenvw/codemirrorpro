@@ -121,7 +121,6 @@ export function setupCodeMirror(target, dialog) {
         editor.focus();
     });
 
-    // Toolbar
     const toolbar = buildToolbar({
         editor,
         dialog: dialog || host,
@@ -142,6 +141,13 @@ export function setupCodeMirror(target, dialog) {
     if (showToolbar) {
         if ((settings.toolbar?.position || 'top') === 'bottom') host.appendChild(toolbar.root);
         else host.insertBefore(toolbar.root, host.firstChild);
+    }
+    // Mobile: status bar pinned to bottom so it doesn't overlap content.
+    if (isMobileDevice() && toolbar.status) {
+        const strip = document.createElement('div');
+        strip.className = 'cmp--statusbar';
+        strip.appendChild(toolbar.status);
+        host.appendChild(strip);
     }
 
     // Auto-fullscreen: mobile + opt-in setting.

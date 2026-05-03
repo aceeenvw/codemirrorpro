@@ -1,19 +1,16 @@
 # Changelog
 
-## 2.0.2 — Fullscreen hardening + debug mode (2026-05)
+## 2.0.3 — Status bar cosmetics + cleanup (2026-05)
 
 ### ✦ Bug fixes
 
-- **Fullscreen button was closing the dialog entirely** (not just collapsing). Root cause: SillyTavern's popup JS reacts to `click`/`pointerdown` events bubbling up from inside the dialog and/or to class/style mutations on `dialog.popup`, and invokes `dialog.close()`. Fixed with a multi-layered defense:
-  1. **Capture-phase event firewall** on the toolbar root — stops `pointerdown`, `mousedown`, `click`, `touchstart`, `touchend` from bubbling to ST's dialog-level delegates at capture time.
-  2. **Per-button propagation stops** on `pointerdown`, `mousedown`, `click`, `touchstart` so ST's delegates never see our button interactions regardless of event phase.
-  3. **`dialog.close()` shield window** — temporarily monkey-patches `dialog.close` to a no-op for ~200ms around the fullscreen toggle, so any ST handler that tries to close the dialog in response to our class/style mutation is silently blocked. Original method restored after the window.
-  4. **`cancel` event guard** — captures and preventDefaults native dialog-cancel events during the same window.
-  5. Buttons marked `formnovalidate` + `formmethod="get"` to neutralize any implicit form-submit dialog-close coupling.
+- **Status bar overlapped typed text on mobile** — `Ln N, Col M · chars` was rendered inline inside the top toolbar where the text line fell over the first lines of content. Split the status into a dedicated bottom strip on mobile with `border-top` + safe-area-aware padding; stays inline in the toolbar on desktop.
+- **Top-bar buttons unresponsive after 2.0.2 event firewall** — the capture-phase `stopPropagation` added around the toolbar root prevented events from reaching descendant buttons. Fixed by removing the firewall entirely (see below).
 
-### ✦ Developer features
+### ✦ Cleanup
 
-- **Debug mode** — set `window.CMP_DEBUG = true` in the browser console before clicking the fullscreen button to get detailed `[cmp:fs]` logs: click target, dialog `open`/`isConnected` state, every class/style mutation on the dialog, any dialog-close attempts intercepted by the shield, and the result of the toggle. Turn off with `window.CMP_DEBUG = false`.
+- **Removed the 2.0.2 close-shield machinery.** The previous "dialog closes on fullscreen click" report turned out to be a conflict with a different extension, not a SillyTavern bug. Removed: capture-phase toolbar firewall, per-button multi-phase propagation stops, `dialog.close` monkey-patch shield, `cancel` event guard, `CMP_DEBUG` logging. Kept: `type=button`, `formnovalidate`, single `stopPropagation` on click, and the CSS/inline-style approach for sizing — all of which are independently useful and add no complexity.
+- Comment discipline sweep: trimmed per-line narration in `toolbar.js`, tightened module-level doc strings.
 
 ---
 
