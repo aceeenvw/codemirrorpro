@@ -1,4 +1,4 @@
-import { openSearchPanel, findNext, findPrevious } from '@codemirror/search';
+import { openSearchPanel } from '@codemirror/search';
 import { undo, redo } from '@codemirror/commands';
 import { t, onLocaleChange, formatNumber } from './i18n.js';
 
@@ -128,18 +128,10 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const bUndo = mkBtn('fa-solid fa-rotate-left', 'cmp.toolbar.undo', () => { undo(editor); editor.focus(); });
     const bRedo = mkBtn('fa-solid fa-rotate-right', 'cmp.toolbar.redo', () => { redo(editor); editor.focus(); });
 
-    // Group: search.
+    // Group: search (single entry; panel exposes both find and replace).
     const bSearch = mkBtn('fa-solid fa-magnifying-glass', 'cmp.toolbar.search', () => {
         editor.focus();
         openSearchPanel(editor);
-    });
-    const bReplace = mkBtn('fa-solid fa-right-left', 'cmp.toolbar.replace', () => {
-        editor.focus();
-        openSearchPanel(editor);
-        setTimeout(() => {
-            const panel = dialog.querySelector('.cmp-sp');
-            panel?.querySelector('input[name="replace"]')?.focus();
-        }, 40);
     });
 
     // Group: clipboard.
@@ -170,7 +162,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     // Assemble with visual separators between groups.
     const groups = [
         [bUndo, bRedo],
-        [bSearch, bReplace],
+        [bSearch],
         [bPaste, bCopy],
         [bFull, bSettings],
     ];

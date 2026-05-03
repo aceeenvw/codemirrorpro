@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.1 — Search panel layout + UX cleanup (2026-05)
+
+### ✦ Bug fixes
+
+- **Editor content disappeared when search panel opened** — the host's flex layout wasn't propagated into `.cm-editor`, so CM6's internal layout gave the panel all available space and starved the scroller to 0 height. Fixed by making `.cm-editor` a flex-column of its own (`display: flex`, `flex-direction: column`, `height: 100%`), giving `.cm-scroller` `flex: 1 1 auto; min-height: 0`, and pinning `.cm-panels` to `flex: 0 0 auto` so panels never steal scroller space.
+- **Panel could overflow the dialog** on narrow widths or very tall mobile layouts. Added `max-height: 40dvh` (desktop) / `50dvh` (mobile) with `overflow-y: auto`, plus `max-width: 100%` and `box-sizing: border-box` so panel contents always fit the container.
+- **Rows didn't wrap gracefully** on narrow widths — inputs and button clusters would get cut off. Added `flex-wrap: wrap` on rows with explicit flex-basis values on field vs controls.
+
+### ✦ UX
+
+- **Merged Find and Replace toolbar buttons into a single Search button** (magnifying glass icon). The panel itself exposes both Find and Replace rows always, so two entry points was redundant friction. One button, one panel, both features accessible.
+- Removed unused `findNext` / `findPrevious` imports from `toolbar.js`.
+
+---
+
 ## 2.2.0 — Custom search & replace panel (2026-05)
 
 Replaced CodeMirror 6's default search panel with a custom implementation via `search({ createPanel })`. The default CM6 panel's cramped horizontal layout, tiny inputs, and awkward mobile behavior were the root of the discomfort — not a problem fixable by CSS alone.

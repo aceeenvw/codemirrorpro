@@ -62,11 +62,20 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 .codemirror-host .cm-editor {
     flex: 1 1 auto;
     min-height: 0;
-    height: auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .codemirror-host .cm-scroller {
     overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* CM6 panels must not steal scroller space. */
+.codemirror-host .cm-panels {
+    flex: 0 0 auto;
 }
 
 .codemirror-host .cm-editor .cm-content {
@@ -548,6 +557,13 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
     font-family: var(--mainFontFamily);
     animation: cmp-sp-slide 160ms cubic-bezier(0.2, 0, 0, 1);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    max-height: 40dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 0 0 auto;
 }
 
 @keyframes cmp-sp-slide {
@@ -565,6 +581,15 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     align-items: center;
     gap: 8px;
     min-width: 0;
+    flex-wrap: wrap;
+}
+
+.cmp-sp--row > .cmp-sp--field {
+    flex: 1 1 220px;
+}
+
+.cmp-sp--row > .cmp-sp--ctrls {
+    flex: 0 0 auto;
 }
 
 /* Field = input wrapper with embedded toggles + count */
@@ -773,6 +798,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     padding: 12px;
     gap: 10px;
     padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+    max-height: 50dvh;
 }
 
 .cmp-sp--mobile .cmp-sp--row {
