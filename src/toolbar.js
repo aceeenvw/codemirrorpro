@@ -23,8 +23,14 @@ function mkBtn(iconClass, labelKey, handler, extraClass = '') {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = `cmp--btn ${extraClass}`.trim();
-    b.innerHTML = `<i class="${iconClass}"></i><span class="cmp--btn-label" data-i18n="${labelKey}"></span>`;
-    b.setAttribute('data-i18n-title', labelKey);
+    const icon = document.createElement('i');
+    icon.className = String(iconClass);
+    const label = document.createElement('span');
+    label.className = 'cmp--btn-label';
+    label.setAttribute('data-i18n', String(labelKey));
+    label.textContent = t(labelKey);
+    b.append(icon, label);
+    b.setAttribute('data-i18n-title', String(labelKey));
     b.setAttribute('aria-label', t(labelKey));
     b.title = t(labelKey);
     b.addEventListener('click', (e) => {
@@ -61,8 +67,37 @@ async function copyAll(editor) {
     }
 }
 
+// Snapshot + restore: ST sets inline width/top/left on dialog.popup; we
+// must outrank those with !important inline writes, then put them back.
+const SAVED_INLINE = new WeakMap();
+const FS_PROPS = [
+    ['width', '100dvw'], ['height', '100dvh'],
+    ['max-width', '100dvw'], ['max-height', '100dvh'],
+    ['min-width', '100dvw'], ['min-height', '100dvh'],
+    ['top', '0'], ['left', '0'], ['right', '0'], ['bottom', '0'],
+    ['margin', '0'], ['transform', 'none'], ['inset', '0'],
+];
+
+function applyFullscreenInline(dialog) {
+    if (!SAVED_INLINE.has(dialog)) {
+        SAVED_INLINE.set(dialog, dialog.getAttribute('style') || '');
+    }
+    for (const [k, v] of FS_PROPS) dialog.style.setProperty(k, v, 'important');
+}
+
+function restoreInline(dialog) {
+    const saved = SAVED_INLINE.get(dialog);
+    if (saved == null) return;
+    if (saved) dialog.setAttribute('style', saved);
+    else dialog.removeAttribute('style');
+    SAVED_INLINE.delete(dialog);
+}
+
 function toggleFullscreen(dialog) {
-    dialog.classList.toggle('cmp--fullscreen');
+    const on = !dialog.classList.contains('cmp--fullscreen');
+    dialog.classList.toggle('cmp--fullscreen', on);
+    on ? applyFullscreenInline(dialog) : restoreInline(dialog);
+    return on;
 }
 
 /**
@@ -79,7 +114,11 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     langChip.className = 'cmp--lang-chip';
     langChip.setAttribute('aria-label', t('cmp.toolbar.language'));
     langChip.title = t('cmp.toolbar.language');
-    langChip.innerHTML = `<i class="fa-solid fa-code"></i><span class="cmp--lang-chip-text"></span>`;
+    const lcIcon = document.createElement('i');
+    lcIcon.className = 'fa-solid fa-code';
+    const lcText = document.createElement('span');
+    lcText.className = 'cmp--lang-chip-text';
+    langChip.append(lcIcon, lcText);
     langChip.addEventListener('click', (e) => { e.preventDefault(); onLanguageClick?.(langChip); });
 
     const btnGroup = document.createElement('div');
@@ -102,12 +141,22 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const bCopy = mkBtn('fa-solid fa-copy', 'cmp.toolbar.copy', () => copyAll(editor));
     const bUndo = mkBtn('fa-solid fa-rotate-left', 'cmp.toolbar.undo', () => { undo(editor); editor.focus(); });
     const bRedo = mkBtn('fa-solid fa-rotate-right', 'cmp.toolbar.redo', () => { redo(editor); editor.focus(); });
+    let fsGuard = null;
     const bFull = mkBtn('fa-solid fa-expand', 'cmp.toolbar.fullscreen', () => {
-        toggleFullscreen(dialog);
-        const exp = dialog.classList.contains('cmp--fullscreen');
-        bFull.querySelector('i').className = exp ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-        bFull.setAttribute('data-i18n-title', exp ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
-        bFull.title = t(exp ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
+        const on = toggleFullscreen(dialog);
+        bFull.querySelector('i').className = on ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+        bFull.setAttribute('data-i18n-title', on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
+        bFull.title = t(on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
+        fsGuard?.disconnect();
+        fsGuard = null;
+        if (on) {
+            // ST re-applies dialog inline styles on resize/drag; re-assert.
+            fsGuard = new MutationObserver(() => {
+                if (!dialog.classList.contains('cmp--fullscreen')) return;
+                if (dialog.style.width !== '100dvw') applyFullscreenInline(dialog);
+            });
+            fsGuard.observe(dialog, { attributes: true, attributeFilter: ['style', 'class'] });
+        }
     });
     const bSettings = mkBtn('fa-solid fa-gear', 'cmp.toolbar.settings', () => onSettingsClick?.(bSettings));
 
@@ -153,6 +202,12 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
 
     function destroy() {
         offLocale?.();
+        fsGuard?.disconnect();
+        fsGuard = null;
+        if (dialog?.classList?.contains('cmp--fullscreen')) {
+            dialog.classList.remove('cmp--fullscreen');
+            restoreInline(dialog);
+        }
         root.remove();
     }
 

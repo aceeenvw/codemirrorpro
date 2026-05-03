@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.1 — Fullscreen + locale fix (2026-05)
+
+### ✦ Bug fixes
+
+- **Fullscreen toggle collapsed immediately** — SillyTavern's dialog.popup JS applies inline `width`/`top`/`left`/`transform` that outranked our `:has`-scoped CSS rule. Fixed by writing `!important` inline style properties from JS (`width: 100dvw`, `height: 100dvh`, `inset: 0`, `margin: 0`, `transform: none`) when fullscreen is engaged, plus a `MutationObserver` that re-asserts them if ST overwrites them during a resize/drag. Inline styles are snapshotted on enter and restored verbatim on exit. CSS now also resizes ST's inner `.popup-body` / `.popup-content` / `.dialogue_popup_holder` wrappers so the editor fills the viewport.
+- **Default locale was Russian on non-English systems** — upstream default was `locale: 'auto'`, which correctly detected the OS/browser locale but violated "English first" policy. Changed default to `'en-us'`. Added one-shot migration (`_localeMigrated` flag) that forces `en-us` on load for anyone whose settings were auto-normalized to a non-English locale. Users who want auto-detection can still opt in via the settings dropdown.
+
+### ✦ Modernization
+
+- Comment discipline pass: trimmed narration from module headers and inline comments per fork conventions (logic-critical only).
+- Fullscreen property application refactored into a shared `FS_PROPS` constant array to eliminate duplication between the class+inline paths.
+
+---
+
 ## 2.0.0 — Fork baseline (2026-05)
 
 First release of ⊹ CODE MIRROR PRO ⊹ — maintained fork of

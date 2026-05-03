@@ -7,13 +7,42 @@ dialog.popup.cmp--active-dialog {
     width: unset;
 }
 
+/* Fullscreen: CSS arms both the dialog element and ST's inner wrappers.
+   JS paired at toolbar.js applies !important inline props to outrank ST. */
 dialog.popup.cmp--fullscreen {
     width: 100dvw !important;
     height: 100dvh !important;
     max-width: 100dvw !important;
     max-height: 100dvh !important;
+    min-width: 100dvw !important;
+    min-height: 100dvh !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
     margin: 0 !important;
+    padding: 8px !important;
     border-radius: 0 !important;
+    transform: none !important;
+    inset: 0 !important;
+    box-sizing: border-box !important;
+}
+
+dialog.popup.cmp--fullscreen .popup-body,
+dialog.popup.cmp--fullscreen .popup-content,
+dialog.popup.cmp--fullscreen .dialogue_popup_holder,
+dialog.popup.cmp--fullscreen > .popup-content {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    box-sizing: border-box !important;
+}
+
+dialog.popup.cmp--fullscreen .codemirror-host {
+    height: 100% !important;
+    width: 100% !important;
+    min-height: 0 !important;
 }
 
 .codemirror-host {

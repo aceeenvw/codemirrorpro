@@ -44,7 +44,7 @@ export function setupCodeMirror(target, dialog) {
         dialog.classList.add('cmp--active-dialog');
     }
 
-    // Compartments for live reconfiguration.
+    // Compartments → live reconfigure without editor rebuild.
     const langComp = new Compartment();
     const themeComp = new Compartment();
     const wrapComp = new Compartment();
@@ -107,13 +107,13 @@ export function setupCodeMirror(target, dialog) {
         parent: host,
     });
 
-    // Lazy-load language extension.
+    // Language pack: async load, reconfigure when ready.
     let currentLang = initialLang;
     loadLanguageExtension(initialLang).then(ext => {
         if (ext) editor.dispatch({ effects: langComp.reconfigure(ext) });
     }).catch(() => {});
 
-    // Position cursor at end after first paint (fixes upstream bug #10).
+    // rAF: focus + cursor-to-end after first paint. Firefox mobile invisible-cursor fix.
     requestAnimationFrame(() => {
         editor.dispatch({
             selection: { anchor: editor.state.doc.length, head: editor.state.doc.length },
@@ -144,7 +144,7 @@ export function setupCodeMirror(target, dialog) {
         else host.insertBefore(toolbar.root, host.firstChild);
     }
 
-    // Fullscreen on mobile if requested
+    // Auto-fullscreen: mobile + opt-in setting.
     if (isMobileDevice() && settings.fullscreenOnMobile && dialog) {
         dialog.classList.add('cmp--fullscreen');
     }
@@ -168,7 +168,7 @@ export function setupCodeMirror(target, dialog) {
         host.setAttribute('aria-label', t('cmp.a11y.editor'));
     });
 
-    // Teardown when dialog closes / removed.
+    // Teardown: fires on <dialog> close or detach from DOM.
     const cleanup = () => {
         try { editor.destroy(); } catch { /* ignore */ }
         offSettings?.();

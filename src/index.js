@@ -1,6 +1,5 @@
-// ⊹ CODE MIRROR PRO ⊹ — entry.
-// Fork of SillyTavern/Extension-CodeMirror by Cohee1207.
-// Fork author: aceenvw.
+// ⊹ CODE MIRROR PRO ⊹ entry. Fork of SillyTavern/Extension-CodeMirror
+// (Cohee1207). Fork author: aceenvw.
 import './style.css';
 
 import { setupCodeMirror } from './editor.js';
@@ -49,7 +48,7 @@ function startObserver() {
     });
     STATE.observer.observe(document.body, { childList: true, subtree: true });
 
-    // Handle dialogs already present at init time.
+    // Catch dialogs mounted before observer started.
     document.querySelectorAll('dialog').forEach(processAddedNode);
 }
 
@@ -74,7 +73,7 @@ function init() {
     startObserver();
     tryMountSettings();
 
-    // Retry settings mount — extensions drawer may not exist yet on first load.
+    // Retry: #extensions_settings may not exist on first tick.
     let retries = 0;
     const timer = setInterval(() => {
         tryMountSettings();
@@ -87,8 +86,7 @@ function init() {
     window.addEventListener('pagehide', stopObserver, { once: true });
 }
 
-// Robust ready: ST may fire APP_READY via its eventSource, but we can't assume
-// its exact shape across versions. Use multiple triggers — harmless dedupe.
+// Multi-trigger init — init() idempotent via STATE.ready flag.
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });
 } else {
@@ -101,7 +99,7 @@ try {
     if (ev && types?.APP_READY) ev.on(types.APP_READY, init);
 } catch { /* ignore */ }
 
-// Debug handle — verifiable author string on globalThis, non-tampering.
+// Debug surface: frozen, non-configurable-free, safe to coexist.
 try {
     globalThis.CodeMirrorPro = Object.freeze({
         version: META.version,

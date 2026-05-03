@@ -582,24 +582,6 @@ This fork inherits the license of the upstream [Extension-CodeMirror](https://gi
 
 ---
 
-## ⟡ Contributing
-
-[](#-contributing)
-
-Found a bug? Want to add v2.1 features? Pull requests welcome.
-
-Ideas for future versions:
-
-```
-  v2.1  ·  More languages — YAML, TypeScript, Python, XML
-  v2.2  ·  Snippets / templates per field type (prompts, WI entries)
-  v2.3  ·  Diff view between character card versions
-  v2.4  ·  Minimap (CodeMirror 6 plugin)
-  v3.0  ·  Vim / Emacs keybindings option · multi-cursor UX polish
-```
-
----
-
 ```
     ⊹                                                               ⊹
          Built with care for the SillyTavern community.
