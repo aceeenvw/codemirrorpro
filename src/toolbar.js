@@ -176,14 +176,13 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         group.forEach(b => btnGroup.appendChild(b));
     });
 
+    // Status mounts in its own bottom strip via editor.js on all viewports
+    // so it never overlaps typed content or crowds the top bar.
     const status = document.createElement('div');
     status.className = 'cmp--status';
 
     root.appendChild(langChip);
     root.appendChild(btnGroup);
-    // Desktop: status inline in toolbar. Mobile: editor.js mounts it
-    // as a bottom strip so it does not overlap typed content.
-    if (!isMobileDevice()) root.appendChild(status);
 
     function updateLangChip() {
         const id = getLanguage?.() || 'plain';

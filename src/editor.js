@@ -144,8 +144,8 @@ export function setupCodeMirror(target, dialog) {
         if ((settings.toolbar?.position || 'top') === 'bottom') host.appendChild(toolbar.root);
         else host.insertBefore(toolbar.root, host.firstChild);
     }
-    // Mobile: status bar pinned to bottom so it doesn't overlap content.
-    if (isMobileDevice() && toolbar.status) {
+    // Status strip pinned to bottom on every viewport.
+    if (toolbar.status) {
         const strip = document.createElement('div');
         strip.className = 'cmp--statusbar';
         strip.appendChild(toolbar.status);

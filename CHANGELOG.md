@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.2.2 — Toolbar icons-only + status bar at bottom everywhere (2026-05)
+
+### ✦ UX
+
+- **Toolbar is now icons-only on every viewport** — text labels (`.cmp--btn-label`) are globally hidden. Button width reduced from `min-height: 36px; padding: 6px 10px` to `min-width: 36px; min-height: 36px; padding: 6px` — compact square buttons with Font Awesome icons only. Titles + aria-labels preserved for tooltips and screen readers.
+- **Status bar moved to a dedicated bottom strip on desktop too** (previously inline in the top toolbar on desktop, bottom strip only on mobile). Now `Ln 15, Col 62 · 16,625 chars` lives below the code on every viewport, never crowding the top bar or overlapping typed text.
+
+### ✦ Bug fixes
+
+- **Search panel was too tall**, pushing the code significantly below the fold. Previously `max-height: 40dvh` desktop / `50dvh` mobile. Now clamped to the smaller of an absolute pixel cap (`140px` desktop / `240px` mobile) or `30dvh` / `40dvh`. Two rows of 36px inputs + padding + gap fits comfortably in ~110px, so the new cap is right-sized for content without starving the editor.
+- **Search panel internal padding tightened** from `10px 12px; gap: 8px` → `8px 10px; gap: 6px` (and mobile from `12px` → `10px`) for a denser, less-wasteful layout.
+
+---
+
 ## 2.2.1 — Search panel layout + UX cleanup (2026-05)
 
 ### ✦ Bug fixes

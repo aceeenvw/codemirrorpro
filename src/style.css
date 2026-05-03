@@ -188,9 +188,10 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 0;
+    min-width: 36px;
     min-height: 36px;
-    padding: 6px 10px;
+    padding: 6px;
     border: 1px solid transparent;
     border-radius: 8px;
     background: transparent;
@@ -209,6 +210,11 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     user-select: none;
+}
+
+/* Icons-only: hide text labels on all viewports. Titles + aria-label keep semantics. */
+.cmp--btn-label {
+    display: none;
 }
 
 .cmp--btn i {
@@ -303,14 +309,12 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     outline-offset: 2px;
 }
 
-/* ── Status (desktop inline) ───────────────────────────────────── */
+/* ── Status text (used inside .cmp--statusbar bottom strip) ──── */
 .cmp--status {
-    margin-left: auto;
     font-size: 11px;
-    opacity: 0.6;
+    opacity: 0.7;
     white-space: nowrap;
     font-family: var(--monoFontFamily);
-    flex: 0 0 auto;
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
 }
@@ -319,9 +323,6 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 .cmp--toolbar.cmp--mobile {
     gap: 6px;
     padding: 8px;
-}
-.cmp--toolbar.cmp--mobile .cmp--btn-label {
-    display: none;
 }
 .cmp--toolbar.cmp--mobile .cmp--btn {
     min-height: 44px;
@@ -332,9 +333,6 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 .cmp--toolbar.cmp--mobile .cmp--btn i {
     font-size: 16px;
     width: 16px;
-}
-.cmp--toolbar.cmp--mobile .cmp--status {
-    display: none;
 }
 .cmp--toolbar.cmp--mobile .cmp--sep {
     margin: 0 3px;
@@ -549,8 +547,8 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 .cmp-sp {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 10px 12px;
+    gap: 6px;
+    padding: 8px 10px;
     background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.96));
     backdrop-filter: blur(12px) saturate(140%);
     -webkit-backdrop-filter: blur(12px) saturate(140%);
@@ -560,7 +558,8 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
-    max-height: 40dvh;
+    /* Compact: two 36px rows + gap + padding ≈ 100px. Cap well below dialog. */
+    max-height: min(140px, 30dvh);
     overflow-y: auto;
     overflow-x: hidden;
     flex: 0 0 auto;
@@ -795,10 +794,10 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 
 /* ─── Mobile bottom-sheet layout ─────────────────────────────── */
 .cmp-sp--mobile {
-    padding: 12px;
-    gap: 10px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
-    max-height: 50dvh;
+    padding: 10px;
+    gap: 8px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+    max-height: min(240px, 40dvh);
 }
 
 .cmp-sp--mobile .cmp-sp--row {
