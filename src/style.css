@@ -459,17 +459,36 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
     border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
-    border-radius: 12px;
-    padding: 12px 14px;
+    border-radius: 14px;
+    padding: 12px;
     z-index: 20;
     box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-width: 240px;
-    max-width: 300px;
+    gap: 4px;
+    min-width: 260px;
+    max-width: 320px;
     animation: cmp-pop-in 140ms cubic-bezier(0.2, 0, 0, 1);
     transform-origin: top right;
+    font-family: var(--mainFontFamily);
+}
+
+.cmp--quick-settings .cmp--qs-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px 8px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 12%, transparent);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 700;
+    opacity: 0.75;
+}
+.cmp--quick-settings .cmp--qs-header i {
+    color: var(--SmartThemeQuoteColor, #8ab4f8);
+    font-size: 11px;
 }
 
 .cmp--quick-settings .cmp--row {
@@ -478,67 +497,694 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     justify-content: space-between;
     gap: 10px;
     font-size: 13px;
+    padding: 6px 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 140ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cmp--quick-settings .cmp--row:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 8%, transparent);
 }
 
 .cmp--quick-settings input[type="number"],
 .cmp--quick-settings select {
-    min-width: 100px;
-    padding: 3px 6px;
+    min-width: 110px;
+    padding: 5px 8px;
     background: var(--black30a);
     color: var(--SmartThemeBodyColor);
     border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 4px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12.5px;
 }
 
-/* Settings drawer */
-.cmp--settings .cmp--section {
-    margin: 10px 0 14px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--SmartThemeBorderColor);
+/* Compact iOS-style switch inside quick-settings */
+.cmp--quick-settings .cmp--qs-switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+.cmp--quick-settings .cmp--qs-switch input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+.cmp--quick-settings .cmp--qs-switch .cmp--qs-track {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 18%, transparent);
+    border-radius: 999px;
+    transition: background-color 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cmp--quick-settings .cmp--qs-switch .cmp--qs-thumb {
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+    transition: left 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cmp--quick-settings .cmp--qs-switch input:checked ~ .cmp--qs-track {
+    background: var(--SmartThemeQuoteColor, #8ab4f8);
+}
+.cmp--quick-settings .cmp--qs-switch input:checked ~ .cmp--qs-track .cmp--qs-thumb {
+    left: 16px;
 }
 
-.cmp--settings .cmp--section:last-child {
-    border-bottom: none;
+/* Mini slider used for font size inside quick-settings */
+.cmp--quick-settings .cmp--qs-slider-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+.cmp--quick-settings .cmp--qs-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 90px;
+    height: 3px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 20%, transparent);
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+}
+.cmp--quick-settings .cmp--qs-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    background: #fff;
+    border: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    border-radius: 50%;
+    cursor: grab;
+}
+.cmp--quick-settings .cmp--qs-slider::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    background: #fff;
+    border: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    border-radius: 50%;
+    cursor: grab;
+}
+.cmp--quick-settings .cmp--qs-chip {
+    min-width: 30px;
+    text-align: center;
+    padding: 2px 6px;
+    font-family: var(--monoFontFamily);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--SmartThemeQuoteColor, #8ab4f8);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 14%, transparent);
+    border-radius: 999px;
 }
 
-.cmp--settings .cmp--section h4 {
-    margin: 8px 0 6px;
-    font-size: 14px;
+/* "Open full settings" link at bottom of popover */
+.cmp--quick-settings .cmp--qs-footer {
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 12%, transparent);
+}
+.cmp--quick-settings .cmp--qs-open-full {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 30%, transparent);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 14%, transparent);
+    color: var(--SmartThemeQuoteColor, #8ab4f8);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    background-image: none;
+    transition: background-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cmp--quick-settings .cmp--qs-open-full:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 24%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 50%, transparent);
+}
+.cmp--quick-settings .cmp--qs-open-full:active { transform: scale(0.97); }
+.cmp--quick-settings .cmp--qs-open-full i { font-size: 11px; }
+
+/* ══════════════════════════════════════════════════════════════════
+   Settings drawer — v2
+   Card-based layout, iOS-style toggles, theme swatches, font slider.
+   All colors are derived from SillyTavern's theme variables so the
+   panel inherits the user's chosen ST palette automatically.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* --- Local tokens -------------------------------------------------- */
+.cmp--settings.cmp--v2 {
+    --cmp-accent: var(--SmartThemeQuoteColor, #8ab4f8);
+    --cmp-fg: var(--SmartThemeBodyColor, #e6e6e6);
+    --cmp-border: color-mix(in srgb, var(--cmp-fg) 16%, transparent);
+    --cmp-border-strong: color-mix(in srgb, var(--cmp-fg) 26%, transparent);
+    --cmp-surface: color-mix(in srgb, var(--cmp-fg) 4%, transparent);
+    --cmp-surface-hover: color-mix(in srgb, var(--cmp-fg) 8%, transparent);
+    --cmp-radius: 12px;
+    --cmp-radius-sm: 8px;
+    --cmp-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Pulse when opened via "Open full settings" link */
+.cmp--settings.cmp--pulse > .inline-drawer-content {
+    animation: cmp-settings-pulse 900ms var(--cmp-ease);
+}
+@keyframes cmp-settings-pulse {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cmp-accent) 45%, transparent); }
+    100% { box-shadow: 0 0 0 14px transparent; }
+}
+
+/* --- Header strip with subtitle + reset ---------------------------- */
+.cmp--settings .cmp--settings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 8px 0 14px;
+    padding: 10px 12px;
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--cmp-accent) 14%, transparent),
+        color-mix(in srgb, var(--cmp-accent) 4%, transparent));
+    border: 1px solid color-mix(in srgb, var(--cmp-accent) 28%, transparent);
+    border-radius: var(--cmp-radius);
+}
+
+.cmp--settings .cmp--settings-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
     opacity: 0.9;
 }
+.cmp--settings .cmp--settings-brand i {
+    color: var(--cmp-accent);
+    font-size: 13px;
+}
 
+.cmp--settings .cmp--ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--cmp-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--cmp-fg);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1;
+    white-space: nowrap;
+    background-image: none;
+    transition: background-color 160ms var(--cmp-ease),
+                border-color 160ms var(--cmp-ease),
+                transform 120ms var(--cmp-ease);
+}
+.cmp--settings .cmp--ghost-btn:hover {
+    background: var(--cmp-surface-hover);
+    border-color: var(--cmp-border-strong);
+}
+.cmp--settings .cmp--ghost-btn:active { transform: scale(0.96); }
+.cmp--settings .cmp--ghost-btn i { font-size: 11px; opacity: 0.85; }
+
+/* --- Card section -------------------------------------------------- */
+.cmp--settings .cmp--card {
+    margin: 0 0 10px;
+    padding: 0;
+    background: var(--cmp-surface);
+    border: 1px solid var(--cmp-border);
+    border-radius: var(--cmp-radius);
+    overflow: hidden;
+    transition: border-color 160ms var(--cmp-ease), background-color 160ms var(--cmp-ease);
+}
+.cmp--settings .cmp--card:hover {
+    border-color: var(--cmp-border-strong);
+}
+
+.cmp--settings .cmp--card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--cmp-border);
+    background: color-mix(in srgb, var(--cmp-fg) 3%, transparent);
+}
+.cmp--settings .cmp--card-head i {
+    font-size: 13px;
+    color: var(--cmp-accent);
+    width: 18px;
+    text-align: center;
+    opacity: 0.95;
+}
+.cmp--settings .cmp--card-head h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+.cmp--settings .cmp--card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+}
+.cmp--settings .cmp--card-body.cmp--toggle-list {
+    gap: 2px;
+    padding: 6px 6px;
+}
+
+/* --- Rows ---------------------------------------------------------- */
 .cmp--settings .cmp--row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    padding: 4px 0;
+    gap: 12px;
     font-size: 13px;
+    min-height: 34px;
+}
+.cmp--settings .cmp--row-stack {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+.cmp--settings .cmp--row-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 500;
+    opacity: 0.92;
+}
+.cmp--settings .cmp--row-sublabel {
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.6;
+    font-weight: 600;
 }
 
-.cmp--settings .cmp--row.cmp--check {
-    justify-content: flex-start;
+/* Toggle row (full-row hit target, switch on the right) */
+.cmp--settings .cmp--toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--cmp-radius-sm);
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    min-height: 38px;
+    transition: background-color 140ms var(--cmp-ease);
+}
+.cmp--settings .cmp--toggle-row:hover {
+    background: var(--cmp-surface-hover);
 }
 
-.cmp--settings .cmp--row.cmp--check input[type="checkbox"] {
+/* --- iOS-style switch --------------------------------------------- */
+.cmp--settings .cmp--switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
     flex: 0 0 auto;
 }
-
-.cmp--settings select,
-.cmp--settings input[type="number"] {
-    min-width: 140px;
-    padding: 4px 6px;
-    background: var(--black30a);
-    color: var(--SmartThemeBodyColor);
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 4px;
+.cmp--settings .cmp--switch input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+.cmp--settings .cmp--switch-track {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--cmp-fg) 20%, transparent);
+    border: 1px solid var(--cmp-border);
+    border-radius: 999px;
+    transition: background-color 180ms var(--cmp-ease),
+                border-color 180ms var(--cmp-ease);
+}
+.cmp--settings .cmp--switch-thumb {
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+    transition: left 180ms var(--cmp-ease), background-color 180ms var(--cmp-ease);
+}
+.cmp--settings .cmp--switch input:checked ~ .cmp--switch-track {
+    background: var(--cmp-accent);
+    border-color: color-mix(in srgb, var(--cmp-accent) 60%, transparent);
+}
+.cmp--settings .cmp--switch input:checked ~ .cmp--switch-track .cmp--switch-thumb {
+    left: 18px;
+}
+.cmp--settings .cmp--switch input:focus-visible ~ .cmp--switch-track {
+    outline: 2px solid var(--cmp-accent);
+    outline-offset: 2px;
 }
 
-.cmp--settings .cmp--lang-grid {
+/* --- Select & number inputs --------------------------------------- */
+.cmp--settings .cmp--select,
+.cmp--settings select[data-cmp] {
+    min-width: 160px;
+    max-width: 220px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    background: color-mix(in srgb, var(--cmp-fg) 3%, var(--black30a, rgba(0,0,0,0.3)));
+    color: var(--cmp-fg);
+    border: 1px solid var(--cmp-border);
+    border-radius: var(--cmp-radius-sm);
+    transition: border-color 140ms var(--cmp-ease), background-color 140ms var(--cmp-ease);
+}
+.cmp--settings .cmp--select:hover,
+.cmp--settings select[data-cmp]:hover {
+    border-color: var(--cmp-border-strong);
+}
+.cmp--settings .cmp--select:focus-visible,
+.cmp--settings select[data-cmp]:focus-visible {
+    outline: none;
+    border-color: var(--cmp-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--cmp-accent) 22%, transparent);
+}
+
+/* --- Range slider (font size) ------------------------------------- */
+.cmp--settings .cmp--slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 320px;
+}
+.cmp--settings .cmp--slider {
+    flex: 1 1 auto;
+    min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: linear-gradient(to right,
+        var(--cmp-accent) 0%,
+        var(--cmp-accent) var(--cmp-slider-pct, 50%),
+        color-mix(in srgb, var(--cmp-fg) 18%, transparent) var(--cmp-slider-pct, 50%),
+        color-mix(in srgb, var(--cmp-fg) 18%, transparent) 100%);
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+}
+.cmp--settings .cmp--slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border: 2px solid var(--cmp-accent);
+    border-radius: 50%;
+    cursor: grab;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    transition: transform 120ms var(--cmp-ease), box-shadow 120ms var(--cmp-ease);
+}
+.cmp--settings .cmp--slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border: 2px solid var(--cmp-accent);
+    border-radius: 50%;
+    cursor: grab;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+.cmp--settings .cmp--slider:active::-webkit-slider-thumb {
+    transform: scale(1.15);
+    cursor: grabbing;
+}
+.cmp--settings .cmp--slider:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--cmp-accent) 28%, transparent);
+}
+
+.cmp--settings .cmp--slider-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    padding: 3px 8px;
+    min-width: 46px;
+    justify-content: center;
+    background: color-mix(in srgb, var(--cmp-accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--cmp-accent) 30%, transparent);
+    color: var(--cmp-accent);
+    border-radius: 999px;
+    font-family: var(--monoFontFamily);
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+}
+.cmp--settings .cmp--slider-chip em {
+    font-style: normal;
+    font-weight: 400;
+    opacity: 0.7;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+}
+.cmp--settings .cmp--slider-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 32px;
+    padding: 0 6px;
+    background: color-mix(in srgb, var(--cmp-fg) 6%, transparent);
+    border: 1px dashed var(--cmp-border);
+    border-radius: var(--cmp-radius-sm);
+    font-family: var(--monoFontFamily);
+    font-weight: 600;
+    color: var(--cmp-fg);
+    line-height: 1;
+    flex: 0 0 auto;
+    transition: font-size 60ms linear;
+}
+
+/* --- Theme swatch grid -------------------------------------------- */
+.cmp--settings .cmp--theme-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 4px 12px;
-    margin-top: 4px;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+}
+.cmp--settings .cmp--theme-swatch {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    background: var(--sw-bg, var(--cmp-surface));
+    color: var(--sw-fg, var(--cmp-fg));
+    border: 1px solid var(--cmp-border);
+    border-radius: var(--cmp-radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 500;
+    text-align: left;
+    background-image: none;
+    overflow: hidden;
+    transition: border-color 160ms var(--cmp-ease),
+                transform 120ms var(--cmp-ease),
+                box-shadow 160ms var(--cmp-ease);
+}
+.cmp--settings .cmp--theme-swatch:hover {
+    border-color: color-mix(in srgb, var(--sw-ac, var(--cmp-accent)) 55%, transparent);
+    transform: translateY(-1px);
+}
+.cmp--settings .cmp--theme-swatch:active { transform: translateY(0) scale(0.98); }
+.cmp--settings .cmp--theme-swatch:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sw-ac, var(--cmp-accent)) 40%, transparent);
+}
+.cmp--settings .cmp--theme-swatch.cmp--theme-active {
+    border-color: var(--sw-ac, var(--cmp-accent));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sw-ac, var(--cmp-accent)) 45%, transparent),
+                0 4px 14px rgba(0,0,0,0.25);
+}
+
+.cmp--settings .cmp--theme-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--sw-bg) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sw-fg) 14%, transparent);
+}
+.cmp--settings .cmp--theme-line {
+    display: block;
+    height: 4px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--sw-fg) 55%, transparent);
+}
+.cmp--settings .cmp--theme-line-a { width: 60%; background: var(--sw-ac); }
+.cmp--settings .cmp--theme-line-b { width: 85%; }
+.cmp--settings .cmp--theme-line-c { width: 45%; opacity: 0.7; }
+
+.cmp--settings .cmp--theme-name {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cmp--settings .cmp--theme-check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    font-size: 12px;
+    color: var(--sw-ac);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 160ms var(--cmp-ease), transform 160ms var(--cmp-ease);
+}
+.cmp--settings .cmp--theme-swatch.cmp--theme-active .cmp--theme-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* --- Segmented control (toolbar position) ------------------------- */
+.cmp--settings .cmp--seg {
+    display: inline-flex;
+    padding: 3px;
+    background: color-mix(in srgb, var(--cmp-fg) 6%, transparent);
+    border: 1px solid var(--cmp-border);
+    border-radius: 999px;
+    gap: 2px;
+    align-self: flex-start;
+}
+.cmp--settings .cmp--seg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 500;
+    color: color-mix(in srgb, var(--cmp-fg) 70%, transparent);
+    background: transparent;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    background-image: none;
+    transition: background-color 160ms var(--cmp-ease),
+                color 160ms var(--cmp-ease);
+}
+.cmp--settings .cmp--seg-btn i { font-size: 10px; }
+.cmp--settings .cmp--seg-btn:hover {
+    color: var(--cmp-fg);
+    background: var(--cmp-surface-hover);
+}
+.cmp--settings .cmp--seg-btn-active {
+    background: color-mix(in srgb, var(--cmp-accent) 22%, transparent);
+    color: var(--cmp-accent);
+    font-weight: 600;
+}
+.cmp--settings .cmp--seg-btn:focus-visible {
+    outline: 2px solid var(--cmp-accent);
+    outline-offset: 2px;
+}
+
+/* --- Language chips ----------------------------------------------- */
+.cmp--settings .cmp--chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.cmp--settings .cmp--chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--cmp-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--cmp-fg);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 160ms var(--cmp-ease),
+                border-color 160ms var(--cmp-ease),
+                color 160ms var(--cmp-ease);
+}
+.cmp--settings .cmp--chip:hover {
+    border-color: var(--cmp-border-strong);
+    background: var(--cmp-surface-hover);
+}
+.cmp--settings .cmp--chip input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+    margin: 0;
+}
+.cmp--settings .cmp--chip:has(input:checked) {
+    background: color-mix(in srgb, var(--cmp-accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--cmp-accent) 45%, transparent);
+    color: var(--cmp-accent);
+}
+.cmp--settings .cmp--chip:has(input:focus-visible) {
+    outline: 2px solid var(--cmp-accent);
+    outline-offset: 2px;
+}
+
+/* --- Mobile tweaks ------------------------------------------------- */
+@media (max-width: 520px) {
+    .cmp--settings .cmp--theme-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .cmp--settings .cmp--slider-wrap {
+        max-width: none;
+    }
+    .cmp--settings .cmp--select,
+    .cmp--settings select[data-cmp] {
+        min-width: 120px;
+    }
+}
+
+/* --- Reduced motion ----------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .cmp--settings *,
+    .cmp--settings *::before,
+    .cmp--settings *::after {
+        transition: none !important;
+        animation: none !important;
+    }
 }
 
 /* Safe-area for notched mobile */

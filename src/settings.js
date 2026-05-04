@@ -78,6 +78,19 @@ export function saveSettings(patch) {
     return next;
 }
 
+/** Reset all settings to DEFAULTS (preserving the migration flag). */
+export function resetSettings() {
+    const store = getStore();
+    const reset = { ...DEFAULTS, _localeMigrated: true };
+    store[KEY] = reset;
+    try {
+        const ctx = globalThis.SillyTavern?.getContext?.();
+        (ctx?.saveSettingsDebounced || globalThis.saveSettingsDebounced)?.();
+    } catch { /* ignore */ }
+    notify(reset);
+    return reset;
+}
+
 function notify(settings) {
     for (const fn of LISTENERS) {
         try { fn(settings); } catch (e) { console.error('[cmp] listener error', e); }
@@ -89,115 +102,215 @@ export function onSettingsChange(fn) {
     return () => LISTENERS.delete(fn);
 }
 
+/* ════════════════════════════════════════════════════════════════
+   Settings panel template
+   Card-based layout, iOS-style toggles, font slider, theme swatches.
+   All text driven by data-i18n; all controls wired by data-cmp/data-cmp-lang.
+   ════════════════════════════════════════════════════════════════ */
+
+// Theme preview swatches: [background, foreground, accent].
+// Tuned to give an at-a-glance vibe of each theme in the picker.
+const THEME_SWATCHES = {
+    'auto':             ['var(--SmartThemeBlurTintColor, #1e1e24)', 'var(--SmartThemeBodyColor, #e6e6e6)', 'var(--SmartThemeQuoteColor, #8ab4f8)'],
+    'one-dark':         ['#282c34', '#abb2bf', '#61afef'],
+    'solarized-light':  ['#fdf6e3', '#657b83', '#268bd2'],
+    'solarized-dark':   ['#002b36', '#839496', '#268bd2'],
+    'github-light':     ['#ffffff', '#24292f', '#0969da'],
+    'github-dark':      ['#0d1117', '#c9d1d9', '#58a6ff'],
+    'dracula':          ['#282a36', '#f8f8f2', '#bd93f9'],
+};
+
+const THEMES = Object.keys(THEME_SWATCHES);
+
+function iconFor(section) {
+    return ({
+        locale:     'fa-solid fa-language',
+        appearance: 'fa-solid fa-palette',
+        editor:     'fa-solid fa-code',
+        languages:  'fa-solid fa-list-ul',
+        toolbar:    'fa-solid fa-toolbox',
+        mobile:     'fa-solid fa-mobile-screen',
+        actions:    'fa-solid fa-sliders',
+    })[section] || 'fa-solid fa-gear';
+}
+
 const TEMPLATE = `
-<div class="cmp--settings inline-drawer">
+<div class="cmp--settings cmp--v2 inline-drawer">
     <div class="inline-drawer-toggle inline-drawer-header">
         <b data-i18n="cmp.settings.title"></b>
         <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
     </div>
     <div class="inline-drawer-content">
-        <div class="cmp--section">
-            <h4 data-i18n="cmp.settings.section_locale"></h4>
-            <label class="cmp--row">
-                <span data-i18n="cmp.settings.locale"></span>
-                <select data-cmp="locale">
-                    <option value="auto" data-i18n="cmp.settings.locale_auto"></option>
-                </select>
-            </label>
-        </div>
 
-        <div class="cmp--section">
-            <h4 data-i18n="cmp.settings.section_appearance"></h4>
-            <label class="cmp--row">
-                <span data-i18n="cmp.settings.theme"></span>
-                <select data-cmp="theme">
-                    <option value="auto" data-i18n="cmp.settings.theme_auto"></option>
-                    <option value="one-dark" data-i18n="cmp.settings.theme_one_dark"></option>
-                    <option value="solarized-light" data-i18n="cmp.settings.theme_solarized_light"></option>
-                    <option value="solarized-dark" data-i18n="cmp.settings.theme_solarized_dark"></option>
-                    <option value="github-light" data-i18n="cmp.settings.theme_github_light"></option>
-                    <option value="github-dark" data-i18n="cmp.settings.theme_github_dark"></option>
-                    <option value="dracula" data-i18n="cmp.settings.theme_dracula"></option>
-                </select>
-            </label>
-            <label class="cmp--row">
-                <span data-i18n="cmp.settings.font_size"></span>
-                <input type="number" min="10" max="28" step="1" data-cmp="fontSize" />
-            </label>
-        </div>
-
-        <div class="cmp--section">
-            <h4 data-i18n="cmp.settings.section_editor"></h4>
-            <label class="cmp--row cmp--check">
-                <input type="checkbox" data-cmp="lineNumbers" />
-                <span data-i18n="cmp.settings.line_numbers"></span>
-            </label>
-            <label class="cmp--row cmp--check">
-                <input type="checkbox" data-cmp="lineWrap" />
-                <span data-i18n="cmp.settings.line_wrap"></span>
-            </label>
-            <label class="cmp--row cmp--check">
-                <input type="checkbox" data-cmp="highlightActiveLine" />
-                <span data-i18n="cmp.settings.highlight_active_line"></span>
-            </label>
-            <label class="cmp--row cmp--check">
-                <input type="checkbox" data-cmp="bracketMatching" />
-                <span data-i18n="cmp.settings.bracket_matching"></span>
-            </label>
-            <label class="cmp--row cmp--check">
-                <input type="checkbox" data-cmp="closeBrackets" />
-                <span data-i18n="cmp.settings.close_brackets"></span>
-            </label>
-        </div>
-
-        <div class="cmp--section">
-            <h4 data-i18n="cmp.settings.section_languages"></h4>
-            <label class="cmp--row">
-                <span data-i18n="cmp.settings.default_language"></span>
-                <select data-cmp="defaultLanguage">
-                    <option value="plain" data-i18n="cmp.settings.language_plain"></option>
-                    <option value="markdown" data-i18n="cmp.settings.language_markdown"></option>
-                    <option value="css" data-i18n="cmp.settings.language_css"></option>
-                    <option value="html" data-i18n="cmp.settings.language_html"></option>
-                    <option value="json" data-i18n="cmp.settings.language_json"></option>
-                    <option value="javascript" data-i18n="cmp.settings.language_javascript"></option>
-                </select>
-            </label>
-            <div class="cmp--lang-grid">
-                <label class="cmp--row cmp--check"><input type="checkbox" data-cmp-lang="css" /><span data-i18n="cmp.settings.language_css"></span></label>
-                <label class="cmp--row cmp--check"><input type="checkbox" data-cmp-lang="markdown" /><span data-i18n="cmp.settings.language_markdown"></span></label>
-                <label class="cmp--row cmp--check"><input type="checkbox" data-cmp-lang="html" /><span data-i18n="cmp.settings.language_html"></span></label>
-                <label class="cmp--row cmp--check"><input type="checkbox" data-cmp-lang="json" /><span data-i18n="cmp.settings.language_json"></span></label>
-                <label class="cmp--row cmp--check"><input type="checkbox" data-cmp-lang="javascript" /><span data-i18n="cmp.settings.language_javascript"></span></label>
+        <div class="cmp--settings-head">
+            <div class="cmp--settings-brand">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span data-i18n="cmp.settings.subtitle"></span>
             </div>
+            <button type="button" class="cmp--ghost-btn" data-cmp-action="reset" title="" data-i18n-title="cmp.settings.reset">
+                <i class="fa-solid fa-rotate-left"></i>
+                <span data-i18n="cmp.settings.reset"></span>
+            </button>
         </div>
 
-        <div class="cmp--section">
-            <h4 data-i18n="cmp.settings.section_toolbar"></h4>
-            <label class="cmp--row cmp--check">
-                <input type="checkbox" data-cmp="toolbar.show" />
-                <span data-i18n="cmp.settings.toolbar_show"></span>
-            </label>
-            <label class="cmp--row">
-                <span data-i18n="cmp.settings.toolbar_position"></span>
-                <select data-cmp="toolbar.position">
-                    <option value="top" data-i18n="cmp.settings.toolbar_position_top"></option>
-                    <option value="bottom" data-i18n="cmp.settings.toolbar_position_bottom"></option>
-                </select>
-            </label>
-        </div>
+        <section class="cmp--card" data-section="locale">
+            <header class="cmp--card-head">
+                <i class="${iconFor('locale')}"></i>
+                <h4 data-i18n="cmp.settings.section_locale"></h4>
+            </header>
+            <div class="cmp--card-body">
+                <label class="cmp--row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.locale"></span>
+                    <select class="cmp--select" data-cmp="locale">
+                        <option value="auto" data-i18n="cmp.settings.locale_auto"></option>
+                    </select>
+                </label>
+            </div>
+        </section>
 
-        <div class="cmp--section">
-            <h4 data-i18n="cmp.settings.section_mobile"></h4>
-            <label class="cmp--row cmp--check">
-                <input type="checkbox" data-cmp="mobileToolbar" />
-                <span data-i18n="cmp.settings.mobile_toolbar"></span>
-            </label>
-            <label class="cmp--row cmp--check">
-                <input type="checkbox" data-cmp="fullscreenOnMobile" />
-                <span data-i18n="cmp.settings.mobile_fullscreen"></span>
-            </label>
-        </div>
+        <section class="cmp--card" data-section="appearance">
+            <header class="cmp--card-head">
+                <i class="${iconFor('appearance')}"></i>
+                <h4 data-i18n="cmp.settings.section_appearance"></h4>
+            </header>
+            <div class="cmp--card-body">
+                <div class="cmp--row cmp--row-stack">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.theme"></span>
+                    <div class="cmp--theme-grid" role="radiogroup" aria-label="Theme">
+                        ${THEMES.map(id => `
+                            <button type="button"
+                                    class="cmp--theme-swatch"
+                                    role="radio"
+                                    aria-checked="false"
+                                    data-cmp-theme="${id}"
+                                    data-i18n-title="cmp.settings.theme_${id.replace(/-/g, '_')}"
+                                    title=""
+                                    style="--sw-bg:${THEME_SWATCHES[id][0]};--sw-fg:${THEME_SWATCHES[id][1]};--sw-ac:${THEME_SWATCHES[id][2]};">
+                                <span class="cmp--theme-preview" aria-hidden="true">
+                                    <span class="cmp--theme-line cmp--theme-line-a"></span>
+                                    <span class="cmp--theme-line cmp--theme-line-b"></span>
+                                    <span class="cmp--theme-line cmp--theme-line-c"></span>
+                                </span>
+                                <span class="cmp--theme-name" data-i18n="cmp.settings.theme_${id.replace(/-/g, '_')}"></span>
+                                <i class="cmp--theme-check fa-solid fa-circle-check" aria-hidden="true"></i>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="cmp--row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.font_size"></span>
+                    <div class="cmp--slider-wrap">
+                        <input type="range" class="cmp--slider" min="10" max="28" step="1" data-cmp="fontSize" />
+                        <span class="cmp--slider-chip"><span data-cmp-out="fontSize">14</span><em>px</em></span>
+                        <span class="cmp--slider-preview" data-cmp-preview="fontSize">Aa</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cmp--card" data-section="editor">
+            <header class="cmp--card-head">
+                <i class="${iconFor('editor')}"></i>
+                <h4 data-i18n="cmp.settings.section_editor"></h4>
+            </header>
+            <div class="cmp--card-body cmp--toggle-list">
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.line_numbers"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="lineNumbers" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.line_wrap"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="lineWrap" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.highlight_active_line"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="highlightActiveLine" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.bracket_matching"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="bracketMatching" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.close_brackets"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="closeBrackets" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+            </div>
+        </section>
+
+        <section class="cmp--card" data-section="languages">
+            <header class="cmp--card-head">
+                <i class="${iconFor('languages')}"></i>
+                <h4 data-i18n="cmp.settings.section_languages"></h4>
+            </header>
+            <div class="cmp--card-body">
+                <label class="cmp--row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.default_language"></span>
+                    <select class="cmp--select" data-cmp="defaultLanguage">
+                        <option value="plain" data-i18n="cmp.settings.language_plain"></option>
+                        <option value="markdown" data-i18n="cmp.settings.language_markdown"></option>
+                        <option value="css" data-i18n="cmp.settings.language_css"></option>
+                        <option value="html" data-i18n="cmp.settings.language_html"></option>
+                        <option value="json" data-i18n="cmp.settings.language_json"></option>
+                        <option value="javascript" data-i18n="cmp.settings.language_javascript"></option>
+                    </select>
+                </label>
+                <div class="cmp--row cmp--row-stack">
+                    <span class="cmp--row-label cmp--row-sublabel" data-i18n="cmp.settings.enabled_languages"></span>
+                    <div class="cmp--chip-grid">
+                        <label class="cmp--chip"><input type="checkbox" data-cmp-lang="css" /><span data-i18n="cmp.settings.language_css"></span></label>
+                        <label class="cmp--chip"><input type="checkbox" data-cmp-lang="markdown" /><span data-i18n="cmp.settings.language_markdown"></span></label>
+                        <label class="cmp--chip"><input type="checkbox" data-cmp-lang="html" /><span data-i18n="cmp.settings.language_html"></span></label>
+                        <label class="cmp--chip"><input type="checkbox" data-cmp-lang="json" /><span data-i18n="cmp.settings.language_json"></span></label>
+                        <label class="cmp--chip"><input type="checkbox" data-cmp-lang="javascript" /><span data-i18n="cmp.settings.language_javascript"></span></label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cmp--card" data-section="toolbar">
+            <header class="cmp--card-head">
+                <i class="${iconFor('toolbar')}"></i>
+                <h4 data-i18n="cmp.settings.section_toolbar"></h4>
+            </header>
+            <div class="cmp--card-body">
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.toolbar_show"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="toolbar.show" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <div class="cmp--row cmp--row-stack">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.toolbar_position"></span>
+                    <div class="cmp--seg" role="radiogroup" aria-label="Toolbar position">
+                        <button type="button" class="cmp--seg-btn" data-cmp-seg="toolbar.position" data-value="top">
+                            <i class="fa-solid fa-arrow-up"></i>
+                            <span data-i18n="cmp.settings.toolbar_position_top"></span>
+                        </button>
+                        <button type="button" class="cmp--seg-btn" data-cmp-seg="toolbar.position" data-value="bottom">
+                            <i class="fa-solid fa-arrow-down"></i>
+                            <span data-i18n="cmp.settings.toolbar_position_bottom"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cmp--card" data-section="mobile">
+            <header class="cmp--card-head">
+                <i class="${iconFor('mobile')}"></i>
+                <h4 data-i18n="cmp.settings.section_mobile"></h4>
+            </header>
+            <div class="cmp--card-body cmp--toggle-list">
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.mobile_toolbar"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="mobileToolbar" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.mobile_fullscreen"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="fullscreenOnMobile" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+            </div>
+        </section>
+
     </div>
 </div>
 `;
@@ -221,6 +334,12 @@ function applyTranslations(root) {
         const key = el.getAttribute('data-i18n');
         el.textContent = t(key);
     });
+    root.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        const txt = t(key);
+        el.title = txt;
+        el.setAttribute('aria-label', txt);
+    });
 }
 
 function syncInputs(root, settings) {
@@ -233,6 +352,27 @@ function syncInputs(root, settings) {
     root.querySelectorAll('[data-cmp-lang]').forEach(el => {
         const k = el.getAttribute('data-cmp-lang');
         el.checked = !!(settings.enabledLanguages || {})[k];
+    });
+    // Font size slider output + preview
+    const fsNum = Number(settings.fontSize) || 14;
+    root.querySelectorAll('[data-cmp-out="fontSize"]').forEach(el => { el.textContent = String(fsNum); });
+    root.querySelectorAll('[data-cmp-preview="fontSize"]').forEach(el => {
+        el.style.fontSize = `${fsNum}px`;
+    });
+    // Theme swatches — reflect active selection
+    const activeTheme = THEMES.includes(settings.theme) ? settings.theme : 'auto';
+    root.querySelectorAll('[data-cmp-theme]').forEach(el => {
+        const on = el.getAttribute('data-cmp-theme') === activeTheme;
+        el.classList.toggle('cmp--theme-active', on);
+        el.setAttribute('aria-checked', String(on));
+    });
+    // Segmented controls
+    root.querySelectorAll('[data-cmp-seg]').forEach(el => {
+        const path = el.getAttribute('data-cmp-seg');
+        const val = el.getAttribute('data-value');
+        const on = String(getNested(settings, path)) === val;
+        el.classList.toggle('cmp--seg-btn-active', on);
+        el.setAttribute('aria-checked', String(on));
     });
 }
 
@@ -247,6 +387,25 @@ function populateLocaleOptions(root) {
         opt.textContent = loc.label;
         sel.appendChild(opt);
     }
+}
+
+/** Scroll the drawer into view and open it if collapsed. Used by quick-settings. */
+export function openSettingsDrawer() {
+    const root = document.querySelector('.cmp--settings');
+    if (!root) return false;
+    const drawer = root.querySelector('.inline-drawer-content');
+    const toggle = root.querySelector('.inline-drawer-toggle');
+    // Inline-drawer uses an `open` class on the toggle; click if closed.
+    if (toggle && drawer && !toggle.classList.contains('open')) {
+        toggle.click();
+    }
+    try { root.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { /* ignore */ }
+    // Brief highlight pulse for discoverability
+    root.classList.remove('cmp--pulse');
+    // Force reflow so the animation restarts if triggered multiple times
+    void root.offsetWidth;
+    root.classList.add('cmp--pulse');
+    return true;
 }
 
 export function mountSettingsPanel() {
@@ -266,6 +425,7 @@ export function mountSettingsPanel() {
     };
     rerender();
 
+    // Standard change handler (checkboxes, selects, range, language chips)
     root.addEventListener('change', ev => {
         const el = ev.target;
         if (!(el instanceof HTMLElement)) return;
@@ -273,7 +433,8 @@ export function mountSettingsPanel() {
         const lang = el.getAttribute('data-cmp-lang');
         if (path) {
             const value = el.type === 'checkbox' ? el.checked
-                : (el.type === 'number' ? Number(el.value) : el.value);
+                : (el.type === 'number' || el.type === 'range') ? Number(el.value)
+                : el.value;
             const patch = {};
             setNested(patch, path, value);
             saveSettings(patch);
@@ -285,7 +446,82 @@ export function mountSettingsPanel() {
         }
     });
 
-    onLocaleChange(() => rerender());
+    // Live slider feedback — update chip + preview on input (before blur)
+    root.addEventListener('input', ev => {
+        const el = ev.target;
+        if (!(el instanceof HTMLInputElement)) return;
+        if (el.type !== 'range') return;
+        const path = el.getAttribute('data-cmp');
+        if (!path) return;
+        const v = Number(el.value);
+        root.querySelectorAll(`[data-cmp-out="${path}"]`).forEach(o => { o.textContent = String(v); });
+        root.querySelectorAll(`[data-cmp-preview="${path}"]`).forEach(p => { p.style.fontSize = `${v}px`; });
+        // Push intermediate values so the editor responds live while dragging.
+        const patch = {};
+        setNested(patch, path, v);
+        saveSettings(patch);
+    });
+
+    // Click-to-select theme swatches
+    root.addEventListener('click', ev => {
+        const target = ev.target instanceof Element ? ev.target : null;
+        if (!target) return;
+
+        const sw = target.closest('[data-cmp-theme]');
+        if (sw) {
+            ev.preventDefault();
+            const val = sw.getAttribute('data-cmp-theme');
+            saveSettings({ theme: val });
+            return;
+        }
+
+        const seg = target.closest('[data-cmp-seg]');
+        if (seg) {
+            ev.preventDefault();
+            const path = seg.getAttribute('data-cmp-seg');
+            const val = seg.getAttribute('data-value');
+            const patch = {};
+            setNested(patch, path, val);
+            saveSettings(patch);
+            return;
+        }
+
+        const action = target.closest('[data-cmp-action]');
+        if (action?.getAttribute('data-cmp-action') === 'reset') {
+            ev.preventDefault();
+            if (confirmReset()) resetSettings();
+            return;
+        }
+    });
+
+    // ━━━ TWO-WAY LIVE SYNC ━━━
+    // Whenever settings change (from here, from quick-settings, or from any
+    // other source), refresh our inputs so the two panels stay consistent.
+    const offSettings = onSettingsChange(() => syncInputs(root, getSettings()));
+    const offLocale = onLocaleChange(() => rerender());
+
+    // Clean up if the drawer is ever removed
+    const mo = new MutationObserver(() => {
+        if (!root.isConnected) {
+            offSettings?.();
+            offLocale?.();
+            mo.disconnect();
+        }
+    });
+    mo.observe(host, { childList: true });
 
     return root;
+}
+
+function confirmReset() {
+    const msg = t('cmp.settings.reset_confirm');
+    try {
+        // Prefer SillyTavern's popup if available, else window.confirm
+        const ctx = globalThis.SillyTavern?.getContext?.();
+        if (ctx?.callPopup || ctx?.Popup) {
+            // Non-blocking path is async; we take the simpler synchronous confirm here
+            // to avoid async plumbing in an event handler.
+        }
+    } catch { /* ignore */ }
+    return globalThis.confirm ? globalThis.confirm(msg) : true;
 }

@@ -7,7 +7,7 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { cmpSearch } from './search-panel.js';
 
 import { buildPayload, stableId } from './build-info.js';
-import { getSettings, onSettingsChange, saveSettings } from './settings.js';
+import { getSettings, onSettingsChange, saveSettings, openSettingsDrawer } from './settings.js';
 import { detectLanguage, loadLanguageExtension, LANGUAGES } from './languages.js';
 import { getTheme } from './themes.js';
 import { buildToolbar, isMobileDevice } from './toolbar.js';
@@ -192,18 +192,43 @@ function openQuickSettings(editor, host, dialog, applyFn) {
     const existing = host.querySelector('.cmp--quick-settings');
     if (existing) { existing.remove(); return; }
 
-    const s = getSettings();
-    const fsz = Math.max(10, Math.min(28, Number(s.fontSize) || 14));
     const pop = document.createElement('div');
     pop.className = 'cmp--quick-settings';
     pop.setAttribute('role', 'dialog');
     pop.setAttribute('aria-label', t('cmp.toolbar.settings'));
     // Static template; zero user-interpolated values (XSS-safe).
     pop.innerHTML = `
-        <label class="cmp--row cmp--check"><input type="checkbox" data-qs="lineNumbers" /><span data-i18n="cmp.settings.line_numbers"></span></label>
-        <label class="cmp--row cmp--check"><input type="checkbox" data-qs="lineWrap" /><span data-i18n="cmp.settings.line_wrap"></span></label>
-        <label class="cmp--row"><span data-i18n="cmp.settings.font_size"></span><input type="number" min="10" max="28" step="1" data-qs="fontSize" /></label>
-        <label class="cmp--row"><span data-i18n="cmp.settings.theme"></span>
+        <div class="cmp--qs-header">
+            <i class="fa-solid fa-sliders"></i>
+            <span data-i18n="cmp.settings.quick_title"></span>
+        </div>
+
+        <label class="cmp--row">
+            <span data-i18n="cmp.settings.line_numbers"></span>
+            <span class="cmp--qs-switch">
+                <input type="checkbox" data-qs="lineNumbers" />
+                <span class="cmp--qs-track"><span class="cmp--qs-thumb"></span></span>
+            </span>
+        </label>
+
+        <label class="cmp--row">
+            <span data-i18n="cmp.settings.line_wrap"></span>
+            <span class="cmp--qs-switch">
+                <input type="checkbox" data-qs="lineWrap" />
+                <span class="cmp--qs-track"><span class="cmp--qs-thumb"></span></span>
+            </span>
+        </label>
+
+        <div class="cmp--row">
+            <span data-i18n="cmp.settings.font_size"></span>
+            <span class="cmp--qs-slider-wrap">
+                <input type="range" class="cmp--qs-slider" min="10" max="28" step="1" data-qs="fontSize" />
+                <span class="cmp--qs-chip" data-qs-out="fontSize">14</span>
+            </span>
+        </div>
+
+        <label class="cmp--row">
+            <span data-i18n="cmp.settings.theme"></span>
             <select data-qs="theme">
                 <option value="auto"></option>
                 <option value="one-dark">One Dark</option>
@@ -214,27 +239,76 @@ function openQuickSettings(editor, host, dialog, applyFn) {
                 <option value="dracula">Dracula</option>
             </select>
         </label>
+
+        <div class="cmp--qs-footer">
+            <button type="button" class="cmp--qs-open-full" data-qs-action="open-full">
+                <i class="fa-solid fa-up-right-from-square"></i>
+                <span data-i18n="cmp.settings.open_full"></span>
+            </button>
+        </div>
     `;
-    pop.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.getAttribute('data-i18n')));
-    pop.querySelector('[data-qs="lineNumbers"]').checked = !!s.lineNumbers;
-    pop.querySelector('[data-qs="lineWrap"]').checked = !!s.lineWrap;
-    pop.querySelector('[data-qs="fontSize"]').value = String(fsz);
+
     const themeSel = pop.querySelector('[data-qs="theme"]');
-    themeSel.options[0].textContent = t('cmp.settings.theme_auto');
-    themeSel.value = THEME_IDS.includes(s.theme) ? s.theme : 'auto';
+    // Localize both the "Follow SillyTavern" option and all data-i18n spans
+    const refreshLabels = () => {
+        pop.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+        themeSel.options[0].textContent = t('cmp.settings.theme_auto');
+    };
+    refreshLabels();
+
+    // Write current settings into the controls
+    const syncFromSettings = (s) => {
+        const fsz = Math.max(10, Math.min(28, Number(s.fontSize) || 14));
+        pop.querySelector('[data-qs="lineNumbers"]').checked = !!s.lineNumbers;
+        pop.querySelector('[data-qs="lineWrap"]').checked = !!s.lineWrap;
+        const slider = pop.querySelector('[data-qs="fontSize"]');
+        slider.value = String(fsz);
+        pop.querySelector('[data-qs-out="fontSize"]').textContent = String(fsz);
+        themeSel.value = THEME_IDS.includes(s.theme) ? s.theme : 'auto';
+    };
+    syncFromSettings(getSettings());
+
+    // Committed changes (checkbox toggle, select change, slider release)
     pop.addEventListener('change', (ev) => {
         const el = ev.target;
         const key = el.getAttribute('data-qs');
         if (!key) return;
         const v = el.type === 'checkbox' ? el.checked
-            : el.type === 'number' ? Number(el.value)
+            : (el.type === 'number' || el.type === 'range') ? Number(el.value)
             : el.value;
         applyFn(saveSettings({ [key]: v }));
     });
-    pop.addEventListener('click', e => e.stopPropagation());
+
+    // Live slider dragging — push intermediate values so the editor updates in real time
+    pop.addEventListener('input', (ev) => {
+        const el = ev.target;
+        if (!(el instanceof HTMLInputElement) || el.type !== 'range') return;
+        const key = el.getAttribute('data-qs');
+        if (!key) return;
+        const v = Number(el.value);
+        const out = pop.querySelector(`[data-qs-out="${key}"]`);
+        if (out) out.textContent = String(v);
+        applyFn(saveSettings({ [key]: v }));
+    });
+
+    // Keep popover in sync if the main ST drawer changes these same settings
+    const offSync = onSettingsChange((s) => syncFromSettings(s));
+
+    pop.addEventListener('click', e => {
+        e.stopPropagation();
+        const action = e.target instanceof Element ? e.target.closest('[data-qs-action]') : null;
+        if (action?.getAttribute('data-qs-action') === 'open-full') {
+            e.preventDefault();
+            close();
+            // openSettingsDrawer scrolls to + pulses the main ST settings card
+            openSettingsDrawer();
+        }
+    });
+
     host.appendChild(pop);
 
     const close = () => {
+        offSync?.();
         pop.remove();
         document.removeEventListener('mousedown', off, true);
         document.removeEventListener('keydown', onEsc, true);
