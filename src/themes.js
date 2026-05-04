@@ -1,4 +1,4 @@
-// Self-contained CM6 themes. No external theme packages — keeps bundle lean.
+// Self-contained CM6 themes — zero external theme packages.
 import { EditorView } from '@codemirror/view';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as T } from '@lezer/highlight';
@@ -67,7 +67,7 @@ function buildTheme(name, palette, dark) {
     return { name, dark, extension: [theme, syntaxHighlighting(highlight)] };
 }
 
-// SmartTheme-aware palette. Reads CSS vars so highlighting inherits ST look.
+// Reads SmartTheme CSS vars so highlighting inherits the active ST look.
 function autoPalette() {
     const css = (v, fb) => {
         try {

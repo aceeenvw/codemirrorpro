@@ -1,5 +1,5 @@
-// Language detection + lazy loaders. Fixes upstream bug #8:
-// original only detected `customCSS`; every other field fell to plaintext.
+// Language detection (dataset hints + content sniff) + eager-inlined
+// CodeMirror language packs cached on first load.
 
 const CACHE = new Map();
 

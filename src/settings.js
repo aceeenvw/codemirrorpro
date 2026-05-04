@@ -23,7 +23,6 @@ export const DEFAULTS = Object.freeze({
     toolbar: { show: true, position: 'top' },
     mobileToolbar: true,
     fullscreenOnMobile: false,
-    findReplace: true,
 });
 
 const LISTENERS = new Set();
@@ -88,11 +87,6 @@ function notify(settings) {
 export function onSettingsChange(fn) {
     LISTENERS.add(fn);
     return () => LISTENERS.delete(fn);
-}
-
-export function resolveLocale() {
-    const s = getSettings();
-    return detectLocale(s.locale);
 }
 
 const TEMPLATE = `

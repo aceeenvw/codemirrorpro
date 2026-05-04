@@ -19,7 +19,6 @@ function isMobileDevice() {
         || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || '');
 }
 
-// Button factory: type=button so implicit form-submit can't close the dialog.
 function mkBtn(iconClass, labelKey, handler, extraClass = '') {
     const b = document.createElement('button');
     b.type = 'button';
@@ -69,8 +68,8 @@ async function copyAll(editor) {
     }
 }
 
-// Fullscreen: ST sets inline width/top/left on dialog.popup; outrank via
-// !important inline writes and snapshot the previous style for clean exit.
+// Fullscreen: outrank ST's inline dialog styles via !important; snapshot
+// the previous style so exit restores ST's original positioning cleanly.
 const SAVED_INLINE = new WeakMap();
 const FS_PROPS = [
     ['width', '100dvw'], ['height', '100dvh'],
@@ -124,21 +123,16 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const btnGroup = document.createElement('div');
     btnGroup.className = 'cmp--btn-group';
 
-    // Group: history (undo / redo).
+    // Groups: history · search · clipboard · view. Assembled with separators below.
     const bUndo = mkBtn('fa-solid fa-rotate-left', 'cmp.toolbar.undo', () => { undo(editor); editor.focus(); });
     const bRedo = mkBtn('fa-solid fa-rotate-right', 'cmp.toolbar.redo', () => { redo(editor); editor.focus(); });
-
-    // Group: search (single entry; panel exposes both find and replace).
     const bSearch = mkBtn('fa-solid fa-magnifying-glass', 'cmp.toolbar.search', () => {
         editor.focus();
         openSearchPanel(editor);
     });
-
-    // Group: clipboard.
     const bPaste = mkBtn('fa-solid fa-paste', 'cmp.toolbar.paste', () => pasteIntoEditor(editor));
     const bCopy = mkBtn('fa-solid fa-copy', 'cmp.toolbar.copy', () => copyAll(editor));
 
-    // Group: view.
     let fsGuard = null;
     const bFull = mkBtn('fa-solid fa-expand', 'cmp.toolbar.fullscreen', () => {
         const on = toggleFullscreen(dialog);
@@ -159,7 +153,6 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     });
     const bSettings = mkBtn('fa-solid fa-gear', 'cmp.toolbar.settings', () => onSettingsClick?.(bSettings), 'cmp--btn-accent');
 
-    // Assemble with visual separators between groups.
     const groups = [
         [bUndo, bRedo],
         [bSearch],
@@ -176,8 +169,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         group.forEach(b => btnGroup.appendChild(b));
     });
 
-    // Status mounts in its own bottom strip via editor.js on all viewports
-    // so it never overlaps typed content or crowds the top bar.
+    // Status element is created here but mounted by editor.js in a bottom strip.
     const status = document.createElement('div');
     status.className = 'cmp--status';
 

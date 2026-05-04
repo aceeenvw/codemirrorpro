@@ -1,10 +1,10 @@
-// Lightweight i18n: flat JSON dicts, {placeholder} interpolation,
-// fallback chain active -> en-us -> key literal.
+// Flat-JSON i18n. Fallback chain: active -> en-us -> key literal.
+// {placeholder} interpolation via params object.
 
 const EVENT = 'codemirrorpro:localechange';
 
 let active = 'en-us';
-let dicts = { 'en-us': {}, 'ru-ru': {} };
+const dicts = { 'en-us': {}, 'ru-ru': {} };
 
 const AVAILABLE = [
     { code: 'en-us', label: 'English' },
@@ -53,7 +53,6 @@ export function setLocale(code) {
     return active;
 }
 
-export function getLocale() { return active; }
 export function getAvailableLocales() { return AVAILABLE.slice(); }
 
 export function t(key, params) {
@@ -76,5 +75,3 @@ export function formatNumber(n) {
     try { return new Intl.NumberFormat(active).format(n); }
     catch { return String(n); }
 }
-
-export const LOCALE_EVENT = EVENT;

@@ -4,7 +4,7 @@ import './style.css';
 
 import { setupCodeMirror } from './editor.js';
 import { loadSettings, mountSettingsPanel, onSettingsChange } from './settings.js';
-import { registerDict, setLocale, onLocaleChange, detectLocale } from './i18n.js';
+import { registerDict, setLocale, detectLocale } from './i18n.js';
 import { META } from './build-info.js';
 
 import enUS from '../i18n/en-us.json';
@@ -81,12 +81,11 @@ function init() {
     }, 500);
 
     onSettingsChange(() => applyLocaleFromSettings());
-    onLocaleChange(() => { /* propagated to listeners inside modules */ });
 
     window.addEventListener('pagehide', stopObserver, { once: true });
 }
 
-// Multi-trigger init — init() idempotent via STATE.ready flag.
+// Multi-trigger init; init() is idempotent via STATE.ready.
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });
 } else {
@@ -99,7 +98,7 @@ try {
     if (ev && types?.APP_READY) ev.on(types.APP_READY, init);
 } catch { /* ignore */ }
 
-// Debug surface: frozen, non-configurable-free, safe to coexist.
+// Debug handle — frozen object, no non-configurable props to fight cleanup.
 try {
     globalThis.CodeMirrorPro = Object.freeze({
         version: META.version,

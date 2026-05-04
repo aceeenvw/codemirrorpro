@@ -1,5 +1,52 @@
 # Changelog
 
+## 2.2.5 — Audit pass: dead code, correctness, security, comment discipline (2026-05)
+
+Purpose-driven sweep of every source file for bugs, dead code, and comment bloat. Net: -89 source lines, no behavior change for users.
+
+### ✦ Bugs fixed
+
+- **`build-info.js::deriveOffset`** was using plain `*` multiplication for FNV-1a hashing — since JS numbers are 64-bit floats, values above 2^53 lose precision and the hash result is non-standard. Switched to `Math.imul` (the `stableId` function already did this correctly). Result: deterministic 32-bit FNV-1a, matches the reference spec.
+- **`search-panel.js`** dead `flags` local variable on the regex path (computed but never used).
+- **`search-panel.js`** never-registered `listener = { update: offUpdate }` object + never-dispatched `cmp-sp-refresh` custom event listener. Pure dead code: the actual update path flows through the panel's returned `update()` method (which works correctly).
+- **`search-panel.js`** unreachable branch `if (e.shiftKey && e.ctrlKey) replaceAll; else if (e.ctrlKey || e.metaKey) replaceAll` — first condition was a subset of the second, so it never fired. Collapsed.
+- **`search-panel.js`** toggle handlers on `tCase` / `tWord` / `tRegex` rebuilt `q` then `commit()` immediately re-built it again. Removed the duplicate construction — toggle handlers now just call `commit()` directly since the click handler already updated the DOM state that `queryOpts()` reads.
+- **`search-panel.js`** prev/next/replace toolbar buttons didn't call `commit()` before operating, so if the user flipped a toggle and hit a chevron without typing, the stale query would fire. Added `commit()` at the start of every action path.
+- **`search-panel.js::destroy()`** didn't clear the pending `commitTimer` — on rapid open/close, a stale setTimeout could fire against a destroyed panel. Fixed.
+- **`editor.js::openQuickSettings`** had `const close` declared *after* `const off` referenced it. Technically safe because `off` is only invoked inside a `setTimeout(0)` that runs after full initialization, but confusing. Reordered declarations so `close` is defined before its first reference.
+
+### ✦ Dead code removed
+
+- `settings.js::resolveLocale` — exported, never imported.
+- `settings.js::DEFAULTS.findReplace` — property on the settings defaults, never read.
+- `i18n.js::getLocale` — exported, never used externally.
+- `i18n.js::LOCALE_EVENT` — re-exported constant, never used externally.
+- `index.js` — no-op `onLocaleChange(() => { /* propagated ... */ })` listener removed along with its stale comment.
+- `index.js` import of `onLocaleChange` removed since it was only used by the dead listener.
+- `editor.js` — inline `ids` array in `openLangPicker` replaced with the `LANGUAGES` import from `languages.js` (which previously had an unused export that this now consumes).
+- `editor.js` — inline theme-id array in `openQuickSettings` extracted to a module-level `THEME_IDS` constant for single-source-of-truth.
+
+### ✦ Comment discipline
+
+Per fork convention (minimal, structured, logic-critical only):
+
+- Removed the big `/** Fixes upstream bugs: #1 #2 #4 ... */` block from `setupCodeMirror` — stale internal issue refs, readers go to CHANGELOG.
+- Removed five `// Group: history` / `// Group: search` / etc. labels in `toolbar.js` (groupings are self-evident from the variable names).
+- Removed `// Assemble with visual separators between groups.` before the trivial `groups.forEach` loop.
+- Trimmed narrative module headers in `languages.js`, `themes.js`, `i18n.js`.
+- Removed `// Static markup only — no user-supplied values interpolated.` note inside `openQuickSettings`, replaced with a one-liner next to `pop.innerHTML`.
+- Trimmed `// Initial query snapshot.`, `// Helpers`, `// Event wiring`, `// Initial count render.`, `// Refresh count when editor selection moves ...` etc. from `search-panel.js`.
+
+### ✦ Security review
+
+- `npm audit`: 0 vulnerabilities (prod + dev).
+- No `eval`, `new Function`, `document.write`, `location.href=`, `window.open`, `fetch`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, `postMessage` in source.
+- Two remaining `innerHTML` assignments (`settings.js`, `editor.js::openQuickSettings`) confirmed unchanged since last audit: both are static template strings with zero runtime interpolation.
+- No new `globalThis` writes. Debug surface remains a frozen object.
+- Digital signature sinks intact: delta-encoded bytes in `build-info.js` still reconstruct the author string and still seed the FNV offset (now via `Math.imul` for correctness).
+
+---
+
 ## 2.2.4 — True equal spacing between toolbar icons (2026-05)
 
 ### ✦ Polish

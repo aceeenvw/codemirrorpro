@@ -8,21 +8,14 @@ import { cmpSearch } from './search-panel.js';
 
 import { buildPayload, stableId } from './build-info.js';
 import { getSettings, onSettingsChange, saveSettings } from './settings.js';
-import { detectLanguage, loadLanguageExtension } from './languages.js';
+import { detectLanguage, loadLanguageExtension, LANGUAGES } from './languages.js';
 import { getTheme } from './themes.js';
 import { buildToolbar, isMobileDevice } from './toolbar.js';
 import { t, onLocaleChange } from './i18n.js';
 
 const ATTACHED = new WeakSet();
+const THEME_IDS = ['auto', 'one-dark', 'solarized-light', 'solarized-dark', 'github-light', 'github-dark', 'dracula'];
 
-/**
- * Fixes upstream bugs:
- *  #1 safe context read, #2 explicit teardown, #4 re-attach guard,
- *  #5 sync loop guard, #6 parent null-check, #7 unified toolbar,
- *  #8 full language detection, #9 configurable wrap, #10 rAF focus,
- *  #11 editor.destroy() on close, #14 :has fallback class,
- *  #16 tab/esc accessibility, #17 aria-label.
- */
 export function setupCodeMirror(target, dialog) {
     if (!target || !target.parentElement) return;
     if (ATTACHED.has(target)) return;
@@ -45,7 +38,7 @@ export function setupCodeMirror(target, dialog) {
         dialog.classList.add('cmp--active-dialog');
     }
 
-    // Compartments → live reconfigure without editor rebuild.
+    // Compartments → live reconfigure via editor.dispatch without rebuild.
     const langComp = new Compartment();
     const themeComp = new Compartment();
     const wrapComp = new Compartment();
@@ -109,13 +102,12 @@ export function setupCodeMirror(target, dialog) {
         parent: host,
     });
 
-    // Language pack: async load, reconfigure when ready.
     let currentLang = initialLang;
     loadLanguageExtension(initialLang).then(ext => {
         if (ext) editor.dispatch({ effects: langComp.reconfigure(ext) });
     }).catch(() => {});
 
-    // rAF: focus + cursor-to-end after first paint. Firefox mobile invisible-cursor fix.
+    // rAF: focus + cursor-to-end after first paint (Firefox mobile cursor fix).
     requestAnimationFrame(() => {
         editor.dispatch({
             selection: { anchor: editor.state.doc.length, head: editor.state.doc.length },
@@ -144,7 +136,6 @@ export function setupCodeMirror(target, dialog) {
         if ((settings.toolbar?.position || 'top') === 'bottom') host.appendChild(toolbar.root);
         else host.insertBefore(toolbar.root, host.firstChild);
     }
-    // Status strip pinned to bottom on every viewport.
     if (toolbar.status) {
         const strip = document.createElement('div');
         strip.className = 'cmp--statusbar';
@@ -152,12 +143,10 @@ export function setupCodeMirror(target, dialog) {
         host.appendChild(strip);
     }
 
-    // Auto-fullscreen: mobile + opt-in setting.
     if (isMobileDevice() && settings.fullscreenOnMobile && dialog) {
         dialog.classList.add('cmp--fullscreen');
     }
 
-    // Live reconfigure from settings changes.
     const applyLiveSettings = (next) => {
         editor.dispatch({
             effects: [
@@ -176,7 +165,7 @@ export function setupCodeMirror(target, dialog) {
         host.setAttribute('aria-label', t('cmp.a11y.editor'));
     });
 
-    // Teardown: fires on <dialog> close or detach from DOM.
+    // Teardown on dialog close or DOM detach.
     const cleanup = () => {
         try { editor.destroy(); } catch { /* ignore */ }
         offSettings?.();
@@ -204,7 +193,9 @@ function openQuickSettings(editor, host, dialog, applyFn) {
     const fsz = Math.max(10, Math.min(28, Number(s.fontSize) || 14));
     const pop = document.createElement('div');
     pop.className = 'cmp--quick-settings';
-    // Static markup only — no user-supplied values interpolated.
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', t('cmp.toolbar.settings'));
+    // Static markup, zero user-interpolated values.
     pop.innerHTML = `
         <label class="cmp--row cmp--check"><input type="checkbox" data-qs="lineNumbers" /><span data-i18n="cmp.settings.line_numbers"></span></label>
         <label class="cmp--row cmp--check"><input type="checkbox" data-qs="lineWrap" /><span data-i18n="cmp.settings.line_wrap"></span></label>
@@ -227,28 +218,26 @@ function openQuickSettings(editor, host, dialog, applyFn) {
     pop.querySelector('[data-qs="fontSize"]').value = String(fsz);
     const themeSel = pop.querySelector('[data-qs="theme"]');
     themeSel.options[0].textContent = t('cmp.settings.theme_auto');
-    themeSel.value = ['auto', 'one-dark', 'solarized-light', 'solarized-dark', 'github-light', 'github-dark', 'dracula'].includes(s.theme) ? s.theme : 'auto';
+    themeSel.value = THEME_IDS.includes(s.theme) ? s.theme : 'auto';
     pop.addEventListener('change', (ev) => {
         const el = ev.target;
         const key = el.getAttribute('data-qs');
         if (!key) return;
-        let v = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? Number(el.value) : el.value);
-        const next = saveSettings({ [key]: v });
-        applyFn(next);
+        const v = el.type === 'checkbox' ? el.checked
+            : el.type === 'number' ? Number(el.value)
+            : el.value;
+        applyFn(saveSettings({ [key]: v }));
     });
     pop.addEventListener('click', e => e.stopPropagation());
-    pop.setAttribute('role', 'dialog');
-    pop.setAttribute('aria-label', t('cmp.toolbar.settings'));
     host.appendChild(pop);
-    const off = (e) => {
-        if (!pop.contains(e.target)) close();
-    };
-    const onEsc = (e) => { if (e.key === 'Escape') close(); };
+
     const close = () => {
         pop.remove();
         document.removeEventListener('mousedown', off, true);
         document.removeEventListener('keydown', onEsc, true);
     };
+    const off = (e) => { if (!pop.contains(e.target)) close(); };
+    const onEsc = (e) => { if (e.key === 'Escape') close(); };
     setTimeout(() => {
         document.addEventListener('mousedown', off, true);
         document.addEventListener('keydown', onEsc, true);
@@ -256,11 +245,10 @@ function openQuickSettings(editor, host, dialog, applyFn) {
 }
 
 function openLangPicker(anchor, current, onPick) {
-    const ids = ['plain', 'css', 'markdown', 'html', 'json', 'javascript'];
     const menu = document.createElement('div');
     menu.className = 'cmp--lang-menu';
     menu.setAttribute('role', 'menu');
-    ids.forEach(id => {
+    LANGUAGES.forEach(id => {
         const item = document.createElement('button');
         item.type = 'button';
         item.setAttribute('role', 'menuitem');
@@ -269,36 +257,32 @@ function openLangPicker(anchor, current, onPick) {
         if (id === current) item.setAttribute('aria-current', 'true');
         item.addEventListener('click', (e) => {
             e.preventDefault();
-            menu.remove();
+            close();
             onPick(id);
         });
         menu.appendChild(item);
     });
     document.body.appendChild(menu);
+
+    // Viewport-safe positioning: flip above anchor / shift left if overflow.
     const rect = anchor.getBoundingClientRect();
     const m = menu.getBoundingClientRect();
-    const vw = innerWidth;
-    const vh = innerHeight;
     let top = rect.bottom + 6;
     let left = rect.left;
-    if (left + m.width > vw - 8) left = Math.max(8, vw - m.width - 8);
-    if (top + m.height > vh - 8) top = Math.max(8, rect.top - m.height - 6);
+    if (left + m.width > innerWidth - 8) left = Math.max(8, innerWidth - m.width - 8);
+    if (top + m.height > innerHeight - 8) top = Math.max(8, rect.top - m.height - 6);
     menu.style.top = `${top}px`;
     menu.style.left = `${left}px`;
+
+    const close = () => {
+        menu.remove();
+        document.removeEventListener('mousedown', off, true);
+        document.removeEventListener('keydown', onEsc, true);
+    };
     const off = (e) => {
-        if (!menu.contains(e.target) && e.target !== anchor) {
-            menu.remove();
-            document.removeEventListener('mousedown', off, true);
-            document.removeEventListener('keydown', onEsc, true);
-        }
+        if (!menu.contains(e.target) && e.target !== anchor) close();
     };
-    const onEsc = (e) => {
-        if (e.key === 'Escape') {
-            menu.remove();
-            document.removeEventListener('mousedown', off, true);
-            document.removeEventListener('keydown', onEsc, true);
-        }
-    };
+    const onEsc = (e) => { if (e.key === 'Escape') close(); };
     setTimeout(() => {
         document.addEventListener('mousedown', off, true);
         document.addEventListener('keydown', onEsc, true);

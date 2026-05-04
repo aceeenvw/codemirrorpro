@@ -18,15 +18,17 @@ function reconstruct(d) {
 }
 
 const AUTHOR = reconstruct(D);
-const VERSION = '2.2.4';
+const VERSION = '2.2.5';
 
-// FNV-1a 32-bit, offset basis derived from author-string hash so the
+// FNV-1a 32-bit. Offset basis derived from author-string hash so the
 // function actually depends on D. Used for stable IDs on editor hosts.
+// Math.imul for correct 32-bit wrap — plain (* 0x01000193) loses precision
+// above 2^53 since JS numbers are 64-bit floats.
 function deriveOffset() {
     let h = 0x811c9dc5;
     for (let i = 0; i < AUTHOR.length; i++) {
         h ^= AUTHOR.charCodeAt(i);
-        h = (h * 0x01000193) >>> 0;
+        h = Math.imul(h, 0x01000193) >>> 0;
     }
     return h >>> 0;
 }
