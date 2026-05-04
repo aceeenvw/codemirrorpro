@@ -11,7 +11,6 @@
 
 **Syntax highlighting · Find & replace · Mobile toolbar · Themes · i18n · Live settings · 17 bug fixes**
 
-[![Version](https://img.shields.io/badge/version-2.0.0-7aa?style=flat-square&labelColor=1a1a1a)](CHANGELOG.md)
 [![SillyTavern](https://img.shields.io/badge/SillyTavern-1.12%2B-c99?style=flat-square&labelColor=1a1a1a)](https://github.com/SillyTavern/SillyTavern)
 [![Platform](https://img.shields.io/badge/platform-desktop%20%C2%B7%20mobile-b9b?style=flat-square&labelColor=1a1a1a)](#-mobile-support)
 [![Author](https://img.shields.io/badge/author-aceenvw-9c9?style=flat-square&labelColor=1a1a1a)](https://github.com/aceeenvw)
