@@ -97,6 +97,7 @@ export function setupCodeMirror(target, dialog) {
                 if (update.selectionSet || update.docChanged) {
                     toolbar?.updateStatus?.();
                 }
+                if (update.transactions.length) toolbar?.syncSearchState?.();
             }),
         ],
         parent: host,
@@ -146,6 +147,8 @@ export function setupCodeMirror(target, dialog) {
     if (isMobileDevice() && settings.fullscreenOnMobile && dialog) {
         dialog.classList.add('cmp--fullscreen');
     }
+
+    toolbar.syncSearchState();
 
     const applyLiveSettings = (next) => {
         editor.dispatch({

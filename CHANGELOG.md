@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.6 — Search button toggle (2026-05)
+
+### ✦ UX
+
+- **Search toolbar button now toggles** the search panel. Click once → panel opens. Click again → panel closes. Previously it always opened (reopening a panel that was already open was a no-op).
+- **Visual active state on the search button** while the panel is open: filled with accent color, `aria-pressed="true"`. Reuses the existing `cmp--btn-active` styling from the fullscreen button.
+- **State stays in sync** regardless of how the panel is closed: `Esc`, the panel's `×` button, `Ctrl+F` toggle, or the toolbar button — the button highlight tracks `searchPanelOpen` field via the editor's `updateListener`.
+
+### ✦ Under the hood
+
+- `toolbar.js`: imported `closeSearchPanel` and `searchPanelOpen` from `@codemirror/search`, added a `syncSearchState()` method to the toolbar return, and made the search button branch on `editor.state.field(searchPanelOpen, false)`.
+- `editor.js`: `updateListener` now calls `toolbar.syncSearchState()` on every transaction (cheap facet read). Initial sync runs after toolbar mount so the state is correct even if a panel was already open.
+
+---
+
 ## 2.2.5 — Audit pass: dead code, correctness, security, comment discipline (2026-05)
 
 Purpose-driven sweep of every source file for bugs, dead code, and comment bloat. Net: -89 source lines, no behavior change for users.

@@ -1,4 +1,4 @@
-import { openSearchPanel } from '@codemirror/search';
+import { openSearchPanel, closeSearchPanel, searchPanelOpen } from '@codemirror/search';
 import { undo, redo } from '@codemirror/commands';
 import { t, onLocaleChange, formatNumber } from './i18n.js';
 
@@ -127,8 +127,13 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const bUndo = mkBtn('fa-solid fa-rotate-left', 'cmp.toolbar.undo', () => { undo(editor); editor.focus(); });
     const bRedo = mkBtn('fa-solid fa-rotate-right', 'cmp.toolbar.redo', () => { redo(editor); editor.focus(); });
     const bSearch = mkBtn('fa-solid fa-magnifying-glass', 'cmp.toolbar.search', () => {
-        editor.focus();
-        openSearchPanel(editor);
+        if (editor.state.field(searchPanelOpen, false)) {
+            closeSearchPanel(editor);
+            editor.focus();
+        } else {
+            editor.focus();
+            openSearchPanel(editor);
+        }
     });
     const bPaste = mkBtn('fa-solid fa-paste', 'cmp.toolbar.paste', () => pasteIntoEditor(editor));
     const bCopy = mkBtn('fa-solid fa-copy', 'cmp.toolbar.copy', () => copyAll(editor));
@@ -191,6 +196,12 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         status.textContent = text;
     }
 
+    function syncSearchState() {
+        const open = editor.state.field(searchPanelOpen, false);
+        bSearch.classList.toggle('cmp--btn-active', open);
+        bSearch.setAttribute('aria-pressed', String(open));
+    }
+
     function rerenderLabels() {
         root.querySelectorAll('[data-i18n]').forEach(el => {
             el.textContent = t(el.getAttribute('data-i18n'));
@@ -218,7 +229,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         root.remove();
     }
 
-    return { root, status, destroy, updateStatus, updateLangChip, rerenderLabels };
+    return { root, status, destroy, updateStatus, updateLangChip, rerenderLabels, syncSearchState };
 }
 
 export { isMobileDevice };
