@@ -389,25 +389,6 @@ function populateLocaleOptions(root) {
     }
 }
 
-/** Scroll the drawer into view and open it if collapsed. Used by quick-settings. */
-export function openSettingsDrawer() {
-    const root = document.querySelector('.cmp--settings');
-    if (!root) return false;
-    const drawer = root.querySelector('.inline-drawer-content');
-    const toggle = root.querySelector('.inline-drawer-toggle');
-    // Inline-drawer uses an `open` class on the toggle; click if closed.
-    if (toggle && drawer && !toggle.classList.contains('open')) {
-        toggle.click();
-    }
-    try { root.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { /* ignore */ }
-    // Brief highlight pulse for discoverability
-    root.classList.remove('cmp--pulse');
-    // Force reflow so the animation restarts if triggered multiple times
-    void root.offsetWidth;
-    root.classList.add('cmp--pulse');
-    return true;
-}
-
 export function mountSettingsPanel() {
     const host = document.getElementById('extensions_settings2') || document.getElementById('extensions_settings');
     if (!host) return null;

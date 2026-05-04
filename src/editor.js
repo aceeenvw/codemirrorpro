@@ -7,7 +7,7 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { cmpSearch } from './search-panel.js';
 
 import { buildPayload, stableId } from './build-info.js';
-import { getSettings, onSettingsChange, saveSettings, openSettingsDrawer } from './settings.js';
+import { getSettings, onSettingsChange, saveSettings } from './settings.js';
 import { detectLanguage, loadLanguageExtension, LANGUAGES } from './languages.js';
 import { getTheme } from './themes.js';
 import { buildToolbar, isMobileDevice } from './toolbar.js';
@@ -239,13 +239,6 @@ function openQuickSettings(editor, host, dialog, applyFn) {
                 <option value="dracula">Dracula</option>
             </select>
         </label>
-
-        <div class="cmp--qs-footer">
-            <button type="button" class="cmp--qs-open-full" data-qs-action="open-full">
-                <i class="fa-solid fa-up-right-from-square"></i>
-                <span data-i18n="cmp.settings.open_full"></span>
-            </button>
-        </div>
     `;
 
     const themeSel = pop.querySelector('[data-qs="theme"]');
@@ -294,16 +287,8 @@ function openQuickSettings(editor, host, dialog, applyFn) {
     // Keep popover in sync if the main ST drawer changes these same settings
     const offSync = onSettingsChange((s) => syncFromSettings(s));
 
-    pop.addEventListener('click', e => {
-        e.stopPropagation();
-        const action = e.target instanceof Element ? e.target.closest('[data-qs-action]') : null;
-        if (action?.getAttribute('data-qs-action') === 'open-full') {
-            e.preventDefault();
-            close();
-            // openSettingsDrawer scrolls to + pulses the main ST settings card
-            openSettingsDrawer();
-        }
-    });
+    // Swallow clicks so the outside-click handler doesn't close us
+    pop.addEventListener('click', e => e.stopPropagation());
 
     host.appendChild(pop);
 
