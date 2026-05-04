@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.7 — Search toggle hotfix (2026-05)
+
+### ✦ Bug fixes
+
+- **Search button toggle never closed the panel** in 2.2.6. Root cause: `searchPanelOpen` from `@codemirror/search` is a plain function `(state) => boolean`, not a StateField. I was calling `editor.state.field(searchPanelOpen, false)` which silently returned the default `false` because the argument wasn't a field. Result: the branch always took the "open" path → `openSearchPanel()` was called on an already-open panel (no-op).
+- Fixed both call sites in `toolbar.js` to use the correct API: `searchPanelOpen(editor.state)`.
+
+Works on desktop and mobile — same code path, same button, same behavior.
+
+---
+
 ## 2.2.6 — Search button toggle (2026-05)
 
 ### ✦ UX

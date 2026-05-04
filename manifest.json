@@ -6,7 +6,7 @@
     "js": "dist/index.js",
     "css": "",
     "author": "aceenvw",
-    "version": "2.2.6",
+    "version": "2.2.7",
     "homePage": "https://github.com/aceeenvw/codemirrorpro",
     "auto_update": true,
     "i18n": {

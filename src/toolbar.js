@@ -127,7 +127,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const bUndo = mkBtn('fa-solid fa-rotate-left', 'cmp.toolbar.undo', () => { undo(editor); editor.focus(); });
     const bRedo = mkBtn('fa-solid fa-rotate-right', 'cmp.toolbar.redo', () => { redo(editor); editor.focus(); });
     const bSearch = mkBtn('fa-solid fa-magnifying-glass', 'cmp.toolbar.search', () => {
-        if (editor.state.field(searchPanelOpen, false)) {
+        if (searchPanelOpen(editor.state)) {
             closeSearchPanel(editor);
             editor.focus();
         } else {
@@ -197,7 +197,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     }
 
     function syncSearchState() {
-        const open = editor.state.field(searchPanelOpen, false);
+        const open = searchPanelOpen(editor.state);
         bSearch.classList.toggle('cmp--btn-active', open);
         bSearch.setAttribute('aria-pressed', String(open));
     }

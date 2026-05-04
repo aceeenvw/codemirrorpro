@@ -18,7 +18,7 @@ function reconstruct(d) {
 }
 
 const AUTHOR = reconstruct(D);
-const VERSION = '2.2.6';
+const VERSION = '2.2.7';
 
 // FNV-1a 32-bit. Offset basis derived from author-string hash so the
 // function actually depends on D. Used for stable IDs on editor hosts.
