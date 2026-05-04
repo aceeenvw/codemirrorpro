@@ -1,5 +1,5 @@
-// Custom CM6 search/replace panel — two-row layout with inline option
-// toggles, live match count, full keyboard control, and a mobile layout.
+// Custom CM6 search panel. Two-row layout, inline option toggles,
+// live match count, full keyboard control, mobile bottom-sheet variant.
 import {
     search,
     SearchQuery,
@@ -95,7 +95,7 @@ export function createSearchPanel(view) {
 
     const initialQ = getSearchQuery(view.state);
 
-    // Row 1: find input + inline toggles + count, then prev / next / close.
+    // Row 1: find input (+ toggles + count) · prev · next · close.
     const row1 = document.createElement('div');
     row1.className = 'cmp-sp--row';
 
@@ -144,7 +144,7 @@ export function createSearchPanel(view) {
     row1Ctrls.append(bPrev, bNext, bClose);
     row1.append(findWrap, row1Ctrls);
 
-    // Row 2: replace input + Replace / Replace-all.
+    // Row 2: replace input · Replace · Replace-all.
     const row2 = document.createElement('div');
     row2.className = 'cmp-sp--row cmp-sp--row-replace';
 
@@ -217,7 +217,7 @@ export function createSearchPanel(view) {
         }
     }
 
-    // 80ms debounce so long queries don't thrash large documents.
+    // 80ms debounce; long queries don't thrash large documents.
     let commitTimer = null;
     const scheduleCommit = () => {
         clearTimeout(commitTimer);
@@ -283,7 +283,7 @@ export function createSearchPanel(view) {
         dom,
         top: !isMobileDevice(),
         mount() {
-            // rAF: focus after CM places the panel (Firefox mobile cursor fix).
+            // rAF: focus after CM places panel (Firefox mobile cursor fix).
             requestAnimationFrame(() => {
                 findInput.focus();
                 findInput.select();

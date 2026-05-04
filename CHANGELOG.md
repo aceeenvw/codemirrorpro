@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.2.8 — Audit + comment discipline (2026-05)
+
+### ✦ Audit
+
+- `npm audit`: **0 vulnerabilities** (prod + dev).
+- Dangerous-construct scan clean: no `eval`, `new Function`, `document.write`, `location=`, `window.open`, `fetch`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, `postMessage`, `localStorage`, `sessionStorage`, `indexedDB`, `document.cookie` in source.
+- Remaining `innerHTML` usages (2) unchanged — both are static template strings with zero runtime interpolation.
+- Bundle URL scan: only `http://www.w3.org/2000/svg` (XML namespace).
+- Console output: 3 legitimate error-path fallbacks (`[cmp] listener error`, `[cmp] language load failed`, `[cmp]` toast fallback). No debug leftovers.
+- No `TODO` / `FIXME` / `HACK` markers.
+- No secrets / credentials in repo.
+
+### ✦ Comment pass
+
+Tightened per fork convention: short, structured, logic-critical only.
+
+- `build-info.js` module header: 6 lines → 3 (purpose + consequence of removal).
+- `build-info.js::deriveOffset`: 4-line rationale → 2 lines.
+- `search-panel.js` module header, row markers (Row 1 / Row 2), debounce comment, rAF comment — all trimmed to one dense line each.
+- `toolbar.js` fullscreen + toolbar-return header tightened.
+- `editor.js` rAF / teardown / static-template / viewport-safe comments trimmed; added explicit "XSS-safe" note to the one `innerHTML` in the quick-settings popover.
+- `index.js` module header, init-retry, multi-trigger, debug-handle comments tightened.
+- `settings.js` migration comment + defaults comment tightened.
+- `languages.js` and `i18n.js` headers polished for consistency.
+
+No behavior change. Bundle size within 20 bytes of 2.2.7.
+
+---
+
 ## 2.2.7 — Search toggle hotfix (2026-05)
 
 ### ✦ Bug fixes

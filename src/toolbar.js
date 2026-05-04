@@ -68,8 +68,8 @@ async function copyAll(editor) {
     }
 }
 
-// Fullscreen: outrank ST's inline dialog styles via !important; snapshot
-// the previous style so exit restores ST's original positioning cleanly.
+// Fullscreen: outrank ST's inline dialog styles via !important.
+// Snapshot previous style so exit restores ST's positioning cleanly.
 const SAVED_INLINE = new WeakMap();
 const FS_PROPS = [
     ['width', '100dvw'], ['height', '100dvh'],
@@ -101,7 +101,8 @@ function toggleFullscreen(dialog) {
     return on;
 }
 
-// Build toolbar → { root, status, destroy, updateStatus, updateLangChip, rerenderLabels }.
+// Returns { root, status, destroy, updateStatus, updateLangChip,
+// rerenderLabels, syncSearchState }.
 export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLanguageClick, getLanguage }) {
     const root = document.createElement('div');
     root.className = 'cmp--toolbar';
@@ -123,7 +124,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const btnGroup = document.createElement('div');
     btnGroup.className = 'cmp--btn-group';
 
-    // Groups: history · search · clipboard · view. Assembled with separators below.
+    // Groups: history · search · clipboard · view (assembled with separators).
     const bUndo = mkBtn('fa-solid fa-rotate-left', 'cmp.toolbar.undo', () => { undo(editor); editor.focus(); });
     const bRedo = mkBtn('fa-solid fa-rotate-right', 'cmp.toolbar.redo', () => { redo(editor); editor.focus(); });
     const bSearch = mkBtn('fa-solid fa-magnifying-glass', 'cmp.toolbar.search', () => {
@@ -174,7 +175,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         group.forEach(b => btnGroup.appendChild(b));
     });
 
-    // Status element is created here but mounted by editor.js in a bottom strip.
+    // Status element lives here but mounts into editor.js bottom strip.
     const status = document.createElement('div');
     status.className = 'cmp--status';
 

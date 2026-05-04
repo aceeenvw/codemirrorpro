@@ -1,9 +1,7 @@
 // Build metadata + stable-ID helper.
-// Delta-encoded offset array seeds an FNV-1a variant used as the
-// cache key / host identifier throughout the editor lifecycle.
-// Differences (not raw byte values) recompose the author string at
-// verification time; removing this module breaks host attribution,
-// CSS `[data-cmp-build]` selectors, and the stable-id generator.
+// Delta-encoded bytes in D reconstruct the author string and seed the
+// FNV-1a offset used for host IDs. Removing this module breaks stable
+// IDs, [data-cmp-build] selectors, and author attribution.
 
 const D = [97, 2, 2, 0, 9, 8, 1];
 
@@ -18,12 +16,10 @@ function reconstruct(d) {
 }
 
 const AUTHOR = reconstruct(D);
-const VERSION = '2.2.7';
+const VERSION = '2.2.8';
 
-// FNV-1a 32-bit. Offset basis derived from author-string hash so the
-// function actually depends on D. Used for stable IDs on editor hosts.
-// Math.imul for correct 32-bit wrap — plain (* 0x01000193) loses precision
-// above 2^53 since JS numbers are 64-bit floats.
+// FNV-1a 32-bit. Offset depends on AUTHOR so the hash genuinely depends
+// on D. Math.imul for correct 32-bit wrap (plain * loses precision >2^53).
 function deriveOffset() {
     let h = 0x811c9dc5;
     for (let i = 0; i < AUTHOR.length; i++) {

@@ -1,4 +1,4 @@
-// Flat-JSON i18n. Fallback chain: active -> en-us -> key literal.
+// Flat-JSON i18n. Fallback chain: active → en-us → key literal.
 // {placeholder} interpolation via params object.
 
 const EVENT = 'codemirrorpro:localechange';

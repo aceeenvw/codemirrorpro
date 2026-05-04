@@ -3,7 +3,7 @@ import { t, setLocale, detectLocale, getAvailableLocales, onLocaleChange } from 
 const KEY = 'codeMirrorPro';
 
 export const DEFAULTS = Object.freeze({
-    // English-first by default. 'auto' available via settings dropdown.
+    // English-first default. 'auto' is an opt-in via the settings dropdown.
     locale: 'en-us',
     theme: 'auto',
     fontSize: 14,
@@ -51,8 +51,8 @@ function getStore() {
 export function loadSettings() {
     const store = getStore();
     const migrated = deepMerge(DEFAULTS, store[KEY] || {});
-    // 2.0.0→2.0.1 migration: old default 'auto' pinned non-English systems
-    // to their nav locale. One-shot force to en-us via _localeMigrated flag.
+    // 2.0.0 → 2.0.1 migration: old 'auto' default pinned non-English systems
+    // to their nav locale. One-shot force to en-us (gated by _localeMigrated).
     if (!migrated._localeMigrated) {
         migrated.locale = 'en-us';
         migrated._localeMigrated = true;

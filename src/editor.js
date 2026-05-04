@@ -38,7 +38,7 @@ export function setupCodeMirror(target, dialog) {
         dialog.classList.add('cmp--active-dialog');
     }
 
-    // Compartments → live reconfigure via editor.dispatch without rebuild.
+    // Compartments → live reconfigure via dispatch, no editor rebuild.
     const langComp = new Compartment();
     const themeComp = new Compartment();
     const wrapComp = new Compartment();
@@ -108,7 +108,7 @@ export function setupCodeMirror(target, dialog) {
         if (ext) editor.dispatch({ effects: langComp.reconfigure(ext) });
     }).catch(() => {});
 
-    // rAF: focus + cursor-to-end after first paint (Firefox mobile cursor fix).
+    // rAF: focus + cursor-to-end after first paint (FF mobile cursor fix).
     requestAnimationFrame(() => {
         editor.dispatch({
             selection: { anchor: editor.state.doc.length, head: editor.state.doc.length },
@@ -168,7 +168,7 @@ export function setupCodeMirror(target, dialog) {
         host.setAttribute('aria-label', t('cmp.a11y.editor'));
     });
 
-    // Teardown on dialog close or DOM detach.
+    // Teardown on <dialog> close or DOM detach.
     const cleanup = () => {
         try { editor.destroy(); } catch { /* ignore */ }
         offSettings?.();
@@ -198,7 +198,7 @@ function openQuickSettings(editor, host, dialog, applyFn) {
     pop.className = 'cmp--quick-settings';
     pop.setAttribute('role', 'dialog');
     pop.setAttribute('aria-label', t('cmp.toolbar.settings'));
-    // Static markup, zero user-interpolated values.
+    // Static template; zero user-interpolated values (XSS-safe).
     pop.innerHTML = `
         <label class="cmp--row cmp--check"><input type="checkbox" data-qs="lineNumbers" /><span data-i18n="cmp.settings.line_numbers"></span></label>
         <label class="cmp--row cmp--check"><input type="checkbox" data-qs="lineWrap" /><span data-i18n="cmp.settings.line_wrap"></span></label>
@@ -267,7 +267,7 @@ function openLangPicker(anchor, current, onPick) {
     });
     document.body.appendChild(menu);
 
-    // Viewport-safe positioning: flip above anchor / shift left if overflow.
+    // Viewport-safe: flip above anchor / shift left on overflow.
     const rect = anchor.getBoundingClientRect();
     const m = menu.getBoundingClientRect();
     let top = rect.bottom + 6;

@@ -1,5 +1,5 @@
-// Language detection (dataset hints + content sniff) + eager-inlined
-// CodeMirror language packs cached on first load.
+// Language detection (dataset hints → content sniff → default) and
+// eager-inlined CodeMirror language packs, cached on first load.
 
 const CACHE = new Map();
 

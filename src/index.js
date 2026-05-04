@@ -1,5 +1,5 @@
-// ⊹ CODE MIRROR PRO ⊹ entry. Fork of SillyTavern/Extension-CodeMirror
-// (Cohee1207). Fork author: aceenvw.
+// ⊹ CODE MIRROR PRO ⊹ — entry point.
+// Fork of SillyTavern/Extension-CodeMirror (Cohee1207). Author: aceenvw.
 import './style.css';
 
 import { setupCodeMirror } from './editor.js';
@@ -48,7 +48,7 @@ function startObserver() {
     });
     STATE.observer.observe(document.body, { childList: true, subtree: true });
 
-    // Catch dialogs mounted before observer started.
+    // Catch dialogs already mounted before observer started.
     document.querySelectorAll('dialog').forEach(processAddedNode);
 }
 
@@ -73,7 +73,7 @@ function init() {
     startObserver();
     tryMountSettings();
 
-    // Retry: #extensions_settings may not exist on first tick.
+    // Retry: ST's #extensions_settings may not exist on first tick.
     let retries = 0;
     const timer = setInterval(() => {
         tryMountSettings();
@@ -85,7 +85,7 @@ function init() {
     window.addEventListener('pagehide', stopObserver, { once: true });
 }
 
-// Multi-trigger init; init() is idempotent via STATE.ready.
+// Multi-trigger init. Idempotent via STATE.ready guard.
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });
 } else {
@@ -98,7 +98,7 @@ try {
     if (ev && types?.APP_READY) ev.on(types.APP_READY, init);
 } catch { /* ignore */ }
 
-// Debug handle — frozen object, no non-configurable props to fight cleanup.
+// Debug handle. Frozen; no non-configurable props (cleanup-friendly).
 try {
     globalThis.CodeMirrorPro = Object.freeze({
         version: META.version,
