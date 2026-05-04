@@ -164,25 +164,26 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 }
 
 /* ── Button groups + separators ───────────────────────────────── */
+/* Flat row, equal 4px gap between EVERY flex child (buttons + separators).
+   Separators have 0 width + 0 margin so they contribute only their visual
+   line without breaking the rhythm. Within-group and cross-group spacing
+   are therefore identical from icon-center to icon-center. */
 .cmp--btn-group {
     display: flex;
-    gap: 2px;
+    gap: 4px;
     align-items: center;
     flex: 1 1 auto;
     min-width: 0;
 }
 
-/* Rhythm: 2px between buttons inside a group, 8px total between groups
-   (2px group-gap + 1px separator + 5px margins). Keeps clusters visually
-   distinct without forming gaps that look like missing buttons. */
 .cmp--sep {
     flex: 0 0 auto;
     width: 1px;
-    height: 20px;
-    margin: 0 3px;
-    background: var(--SmartThemeBorderColor);
-    opacity: 0.45;
+    height: 18px;
+    margin: 0;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 22%, transparent);
     border-radius: 1px;
+    align-self: center;
 }
 
 /* ── Buttons ───────────────────────────────────────────────────── */
@@ -327,6 +328,9 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     gap: 6px;
     padding: 8px;
 }
+.cmp--toolbar.cmp--mobile .cmp--btn-group {
+    gap: 6px;
+}
 .cmp--toolbar.cmp--mobile .cmp--btn {
     min-height: 44px;
     min-width: 44px;
@@ -338,8 +342,8 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     width: 16px;
 }
 .cmp--toolbar.cmp--mobile .cmp--sep {
-    margin: 0 3px;
-    height: 20px;
+    margin: 0;
+    height: 22px;
 }
 .cmp--toolbar.cmp--mobile .cmp--lang-chip {
     min-height: 40px;

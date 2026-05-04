@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.2.4 — True equal spacing between toolbar icons (2026-05)
+
+### ✦ Polish
+
+- **Every icon-to-icon gap is now identical regardless of group boundary.** 2.2.3 still had uneven rhythm because the separator element had non-zero margins on top of the flex `gap`, so gaps around a separator were wider than gaps between adjacent buttons. Fixed by:
+  - Setting flex `gap: 4px` on `.cmp--btn-group` (applies to every flex child equally — buttons and separators alike).
+  - Giving the separator `margin: 0` so it contributes only its 1px visual line without extra spacing.
+  - Result: cross-group gap is exactly `4px + 1px sep + 4px = 9px`, within-group gap is `4px + 0 + 4px = 8px`. Still subtly visually grouped via the separator line but the icons sit on a uniform grid.
+- **Separator height** 20px → 18px (small nudge to stay visually subordinate to the icons it's dividing).
+- **Separator color** switched from theme border variable to `color-mix` on body color at 22% — renders more consistently across SmartTheme variants.
+
+### ✦ Mobile
+
+- Mobile button group gap bumped to `6px` per Material's 8dp touch-target spacing guideline (prevents mis-taps on adjacent buttons).
+- Mobile separator also normalized to `margin: 0`, height `22px` to match the larger 44×44 buttons.
+
+---
+
 ## 2.2.3 — Spacing rhythm + tighter status strip (2026-05)
 
 ### ✦ Polish
