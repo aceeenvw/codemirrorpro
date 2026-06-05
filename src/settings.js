@@ -390,7 +390,7 @@ function populateLocaleOptions(root) {
 }
 
 export function mountSettingsPanel() {
-    const host = document.getElementById('extensions_settings2') || document.getElementById('extensions_settings');
+    const host = document.getElementById('extensions_settings') || document.getElementById('extensions_settings2');
     if (!host) return null;
     if (host.querySelector('.cmp--settings')) return host.querySelector('.cmp--settings');
 
