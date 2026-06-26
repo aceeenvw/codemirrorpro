@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.3.0 — Auto-save, remembered fullscreen, first-open render fix (2026-06)
+
+### ✦ New features
+
+- **Auto-save on close** — the editor's contents are flushed back into the source
+  textarea when the dialog closes, regardless of how it was dismissed. No edit can
+  be lost if a final `input` event didn't fire.
+- **Remember fullscreen** — new "Remember fullscreen" toggle in Settings → Editor.
+  When enabled, toggling fullscreen persists and new editors open in the last-used
+  state. Works alongside the existing mobile auto-fullscreen option.
+
+### ✦ Bug fixes
+
+- **First-open render** — the editor was created the instant the popup `<dialog>`
+  was inserted (mid open-animation), so the first viewport measurement was against
+  a not-yet-final height, showing a cramped/partial render until the user scrolled.
+  Added a one-shot remeasure once the open animation settles, plus a rAF-coalesced
+  `ResizeObserver` (disconnected on teardown) as a safety net. Cursor now opens at
+  the start of the document.
+
+### ✦ Internal
+
+- Refactored toolbar fullscreen into a reusable `setFullscreen(on)` (exposed for
+  restore-on-open); removed the now-dead `toggleFullscreen` helper.
+
+---
+
 ## 2.2.8 — Audit + comment discipline (2026-05)
 
 ### ✦ Audit

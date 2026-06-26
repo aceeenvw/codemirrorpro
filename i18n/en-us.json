@@ -25,6 +25,7 @@
     "cmp.settings.highlight_active_line": "Highlight active line",
     "cmp.settings.bracket_matching": "Bracket matching",
     "cmp.settings.close_brackets": "Auto-close brackets",
+    "cmp.settings.remember_fullscreen": "Remember fullscreen",
     "cmp.settings.default_language": "Default language",
     "cmp.settings.language_css": "CSS",
     "cmp.settings.language_markdown": "Markdown",

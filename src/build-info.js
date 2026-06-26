@@ -16,7 +16,7 @@ function reconstruct(d) {
 }
 
 const AUTHOR = reconstruct(D);
-const VERSION = '2.2.8';
+const VERSION = '2.3.0';
 
 // FNV-1a 32-bit. Offset depends on AUTHOR so the hash genuinely depends
 // on D. Math.imul for correct 32-bit wrap (plain * loses precision >2^53).

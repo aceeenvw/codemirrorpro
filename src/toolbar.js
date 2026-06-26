@@ -94,16 +94,9 @@ function restoreInline(dialog) {
     SAVED_INLINE.delete(dialog);
 }
 
-function toggleFullscreen(dialog) {
-    const on = !dialog.classList.contains('cmp--fullscreen');
-    dialog.classList.toggle('cmp--fullscreen', on);
-    on ? applyFullscreenInline(dialog) : restoreInline(dialog);
-    return on;
-}
-
 // Returns { root, status, destroy, updateStatus, updateLangChip,
 // rerenderLabels, syncSearchState }.
-export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLanguageClick, getLanguage }) {
+export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLanguageClick, onFullscreenChange, getLanguage }) {
     const root = document.createElement('div');
     root.className = 'cmp--toolbar';
     root.dataset.position = settings.toolbar?.position || 'top';
@@ -140,13 +133,14 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const bCopy = mkBtn('fa-solid fa-copy', 'cmp.toolbar.copy', () => copyAll(editor));
 
     let fsGuard = null;
-    const bFull = mkBtn('fa-solid fa-expand', 'cmp.toolbar.fullscreen', () => {
-        const on = toggleFullscreen(dialog);
-        bFull.querySelector('i').className = on ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-        bFull.setAttribute('aria-pressed', String(on));
-        bFull.classList.toggle('cmp--btn-active', on);
-        bFull.setAttribute('data-i18n-title', on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
-        bFull.title = t(on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
+    // Drive fullscreen to an explicit state and keep the button visuals + guard in
+    // sync. Used by the toolbar button and by editor.js to restore a remembered state.
+    const setFullscreen = (on, { notify = true } = {}) => {
+        const isOn = dialog.classList.contains('cmp--fullscreen');
+        if (on === isOn) { applyFsButton(on); return on; }
+        on ? (dialog.classList.add('cmp--fullscreen'), applyFullscreenInline(dialog))
+           : (dialog.classList.remove('cmp--fullscreen'), restoreInline(dialog));
+        applyFsButton(on);
         fsGuard?.disconnect();
         fsGuard = null;
         if (on) {
@@ -156,7 +150,19 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
             });
             fsGuard.observe(dialog, { attributes: true, attributeFilter: ['style', 'class'] });
         }
+        if (notify) onFullscreenChange?.(on);
+        return on;
+    };
+    const bFull = mkBtn('fa-solid fa-expand', 'cmp.toolbar.fullscreen', () => {
+        setFullscreen(!dialog.classList.contains('cmp--fullscreen'));
     });
+    function applyFsButton(on) {
+        bFull.querySelector('i').className = on ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+        bFull.setAttribute('aria-pressed', String(on));
+        bFull.classList.toggle('cmp--btn-active', on);
+        bFull.setAttribute('data-i18n-title', on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
+        bFull.title = t(on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
+    }
     const bSettings = mkBtn('fa-solid fa-gear', 'cmp.toolbar.settings', () => onSettingsClick?.(bSettings), 'cmp--btn-accent');
 
     const groups = [
@@ -230,7 +236,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         root.remove();
     }
 
-    return { root, status, destroy, updateStatus, updateLangChip, rerenderLabels, syncSearchState };
+    return { root, status, destroy, updateStatus, updateLangChip, rerenderLabels, syncSearchState, setFullscreen };
 }
 
 export { isMobileDevice };

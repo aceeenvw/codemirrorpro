@@ -23,6 +23,10 @@ export const DEFAULTS = Object.freeze({
     toolbar: { show: true, position: 'top' },
     mobileToolbar: true,
     fullscreenOnMobile: false,
+    // Remember the fullscreen toggle across editors: when on, toggling fullscreen
+    // persists, and new editors open in the last-used fullscreen state.
+    rememberFullscreen: false,
+    fullscreenState: false,
 });
 
 const LISTENERS = new Set();
@@ -234,6 +238,10 @@ const TEMPLATE = `
                 <label class="cmp--toggle-row">
                     <span class="cmp--row-label" data-i18n="cmp.settings.close_brackets"></span>
                     <span class="cmp--switch"><input type="checkbox" data-cmp="closeBrackets" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.remember_fullscreen"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="rememberFullscreen" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
                 </label>
             </div>
         </section>

@@ -25,6 +25,7 @@
     "cmp.settings.highlight_active_line": "Подсвечивать текущую строку",
     "cmp.settings.bracket_matching": "Подсветка парных скобок",
     "cmp.settings.close_brackets": "Автозакрытие скобок",
+    "cmp.settings.remember_fullscreen": "Запоминать полный экран",
     "cmp.settings.default_language": "Язык по умолчанию",
     "cmp.settings.language_css": "CSS",
     "cmp.settings.language_markdown": "Markdown",

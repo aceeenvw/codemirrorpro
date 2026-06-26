@@ -108,13 +108,28 @@ export function setupCodeMirror(target, dialog) {
         if (ext) editor.dispatch({ effects: langComp.reconfigure(ext) });
     }).catch(() => {});
 
-    // rAF: focus + cursor-to-end after first paint (FF mobile cursor fix).
+    // Place the cursor at the start and focus after first paint.
     requestAnimationFrame(() => {
-        editor.dispatch({
-            selection: { anchor: editor.state.doc.length, head: editor.state.doc.length },
-        });
+        editor.dispatch({ selection: { anchor: 0, head: 0 } });
         editor.focus();
     });
+
+    // The editor is created the instant the popup <dialog> is inserted, while it
+    // is still mid open-animation, so the first viewport measurement is against a
+    // not-yet-final height (cramped/partial render until the user scrolls). Do a
+    // single remeasure once the open animation settles. One-shot, no polling.
+    if (dialog) {
+        const remeasure = () => {
+            editor.requestMeasure();
+            editor.dispatch({ selection: { anchor: 0, head: 0 } });
+        };
+        let done = false;
+        const settle = () => { if (done) return; done = true; remeasure(); };
+        // animationend fires when the popup finishes opening; fallback timeout
+        // covers the no-animation / reduced-motion case.
+        dialog.addEventListener('animationend', settle, { once: true });
+        setTimeout(settle, 350);
+    }
 
     const toolbar = buildToolbar({
         editor,
@@ -122,6 +137,10 @@ export function setupCodeMirror(target, dialog) {
         settings,
         getLanguage: () => currentLang,
         onSettingsClick: () => openQuickSettings(editor, host, dialog, applyLiveSettings),
+        // Persist the fullscreen choice only when the "remember" option is enabled.
+        onFullscreenChange: (on) => {
+            if (getSettings().rememberFullscreen) saveSettings({ fullscreenState: on });
+        },
         onLanguageClick: (anchor) => openLangPicker(anchor, currentLang, async (id) => {
             currentLang = id;
             host.dataset.cmpLang = id;
@@ -144,8 +163,13 @@ export function setupCodeMirror(target, dialog) {
         host.appendChild(strip);
     }
 
-    if (isMobileDevice() && settings.fullscreenOnMobile && dialog) {
-        dialog.classList.add('cmp--fullscreen');
+    // Open fullscreen if: remembered state is on, or mobile auto-fullscreen is set.
+    // Use the toolbar's setter so inline styles + button visuals stay in sync;
+    // notify:false so restoring doesn't re-write the same setting.
+    if (dialog) {
+        const wantFs = (settings.rememberFullscreen && settings.fullscreenState)
+            || (isMobileDevice() && settings.fullscreenOnMobile);
+        if (wantFs) toolbar.setFullscreen?.(true, { notify: false });
     }
 
     toolbar.syncSearchState();
@@ -168,8 +192,39 @@ export function setupCodeMirror(target, dialog) {
         host.setAttribute('aria-label', t('cmp.a11y.editor'));
     });
 
+    // Safety net for later size changes (fullscreen toggle, mobile keyboard).
+    // rAF-coalesced so bursts of resize events cost at most one measure/frame;
+    // idle = zero work. Disconnected on teardown so nothing keeps running.
+    let resizeObs = null;
+    if (typeof ResizeObserver === 'function') {
+        let pending = false;
+        resizeObs = new ResizeObserver(() => {
+            if (pending) return;
+            pending = true;
+            requestAnimationFrame(() => { pending = false; editor.requestMeasure(); });
+        });
+        resizeObs.observe(host);
+    }
+
+    // Flush the editor's current contents back into the source textarea. The
+    // updateListener already mirrors on every change, but this guarantees a final
+    // sync on close regardless of how the dialog was dismissed (no lost edits).
+    const syncToTarget = () => {
+        try {
+            const text = editor.state.doc.toString();
+            if (target.value === text) return;
+            syncing = true;
+            target.value = text;
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch { /* ignore */ } finally {
+            syncing = false;
+        }
+    };
+
     // Teardown on <dialog> close or DOM detach.
     const cleanup = () => {
+        syncToTarget();
+        try { resizeObs?.disconnect(); } catch { /* ignore */ }
         try { editor.destroy(); } catch { /* ignore */ }
         offSettings?.();
         offLocale?.();
