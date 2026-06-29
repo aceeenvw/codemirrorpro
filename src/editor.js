@@ -1,9 +1,9 @@
 import { EditorView, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, highlightActiveLine, keymap, lineNumbers } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
-import { indentOnInput, bracketMatching } from '@codemirror/language';
+import { indentOnInput, bracketMatching, indentUnit, foldGutter, codeFolding, foldKeymap, foldAll, forceParsing } from '@codemirror/language';
 import { history, defaultKeymap, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
-import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } from '@codemirror/autocomplete';
 import { cmpSearch } from './search-panel.js';
 
 import { buildPayload, stableId } from './build-info.js';
@@ -47,11 +47,28 @@ export function setupCodeMirror(target, dialog) {
     const bracketComp = new Compartment();
     const closeBrComp = new Compartment();
     const fontComp = new Compartment();
+    const indentComp = new Compartment();
+    const foldComp = new Compartment();
+    const autocompleteComp = new Compartment();
 
-    const fontTheme = (px) => EditorView.theme({
-        '.cm-content': { fontSize: `${px}px`, fontFamily: 'var(--monoFontFamily)' },
+    const clampIndent = (n) => Math.max(1, Math.min(8, Number(n) || 4));
+    const clampLineHeight = (n) => Math.max(1, Math.min(2.4, Number(n) || 1.5));
+
+    const fontTheme = (px, lh) => EditorView.theme({
+        '.cm-content': {
+            fontSize: `${px}px`,
+            fontFamily: 'var(--monoFontFamily)',
+            lineHeight: String(clampLineHeight(lh)),
+        },
         '.cm-gutters': { fontSize: `${px}px`, fontFamily: 'var(--monoFontFamily)' },
     });
+
+    const indentExt = (n) => {
+        const size = clampIndent(n);
+        return [indentUnit.of(' '.repeat(size)), EditorState.tabSize.of(size)];
+    };
+    const foldExt = (on) => (on ? [codeFolding(), foldGutter()] : []);
+    const autocompleteExt = (on) => (on ? autocompletion() : []);
 
     let syncing = false;
 
@@ -74,6 +91,8 @@ export function setupCodeMirror(target, dialog) {
                 ...defaultKeymap,
                 ...searchKeymap,
                 ...historyKeymap,
+                ...foldKeymap,
+                ...completionKeymap,
                 indentWithTab,
             ]),
             linesComp.of(settings.lineNumbers ? [lineNumbers(), highlightActiveLineGutter()] : []),
@@ -81,8 +100,11 @@ export function setupCodeMirror(target, dialog) {
             bracketComp.of(settings.bracketMatching ? bracketMatching() : []),
             closeBrComp.of(settings.closeBrackets ? closeBrackets() : []),
             wrapComp.of(settings.lineWrap ? EditorView.lineWrapping : []),
+            indentComp.of(indentExt(settings.indentSize)),
+            foldComp.of(foldExt(settings.codeFolding)),
+            autocompleteComp.of(autocompleteExt(settings.autocomplete)),
             themeComp.of(getTheme(settings.theme).extension),
-            fontComp.of(fontTheme(settings.fontSize || 14)),
+            fontComp.of(fontTheme(settings.fontSize || 14, settings.lineHeight)),
             langComp.of([]),
             EditorView.updateListener.of((update) => {
                 if (update.docChanged && !syncing) {
@@ -103,9 +125,51 @@ export function setupCodeMirror(target, dialog) {
         parent: host,
     });
 
+    // foldAll only folds already-parsed regions, and parsing is incremental, so a
+    // large doc would fold only its top. Parse briefly then fold; if unfinished,
+    // parse the tail in idle slices and fold once at the end (one tree walk, off
+    // the interaction path). Budgets bound the work so the open never blocks.
+    const FOLD_FIRST_BUDGET_MS = 30;
+    const FOLD_IDLE_BUDGET_MS = 16;
+    const FOLD_MAX_IDLE_PASSES = 40;
+    let foldTimer = 0;
+    let foldCancel = null;
+
+    const maybeFoldOnOpen = () => {
+        const s = getSettings();
+        if (!s.codeFolding || !s.foldOnOpen) return;
+        requestAnimationFrame(() => {
+            try {
+                const done = forceParsing(editor, editor.state.doc.length, FOLD_FIRST_BUDGET_MS);
+                foldAll(editor);
+                if (!done) scheduleRemainingFold();
+            } catch { /* ignore */ }
+        });
+    };
+
+    const scheduleRemainingFold = () => {
+        const idle = globalThis.requestIdleCallback || ((fn) => { foldTimer = setTimeout(fn, 1); });
+        const cancelIdle = globalThis.cancelIdleCallback || ((id) => clearTimeout(id));
+        let passes = 0;
+        const step = () => {
+            if (!editor.dom.isConnected) return;
+            let done = false;
+            try { done = forceParsing(editor, editor.state.doc.length, FOLD_IDLE_BUDGET_MS); }
+            catch { return; }
+            if (done || ++passes >= FOLD_MAX_IDLE_PASSES) {
+                try { foldAll(editor); } catch { /* ignore */ }
+                return;
+            }
+            foldTimer = idle(step);
+        };
+        foldTimer = idle(step);
+        foldCancel = () => { try { cancelIdle(foldTimer); } catch { /* ignore */ } };
+    };
+
     let currentLang = initialLang;
     loadLanguageExtension(initialLang).then(ext => {
         if (ext) editor.dispatch({ effects: langComp.reconfigure(ext) });
+        maybeFoldOnOpen();
     }).catch(() => {});
 
     // Place the cursor at the start and focus after first paint.
@@ -114,10 +178,8 @@ export function setupCodeMirror(target, dialog) {
         editor.focus();
     });
 
-    // The editor is created the instant the popup <dialog> is inserted, while it
-    // is still mid open-animation, so the first viewport measurement is against a
-    // not-yet-final height (cramped/partial render until the user scrolls). Do a
-    // single remeasure once the open animation settles. One-shot, no polling.
+    // The dialog measures mid open-animation against a non-final height. Remeasure
+    // once the animation settles so the first paint isn't cramped.
     if (dialog) {
         const remeasure = () => {
             editor.requestMeasure();
@@ -125,8 +187,7 @@ export function setupCodeMirror(target, dialog) {
         };
         let done = false;
         const settle = () => { if (done) return; done = true; remeasure(); };
-        // animationend fires when the popup finishes opening; fallback timeout
-        // covers the no-animation / reduced-motion case.
+        // animationend = open finished; timeout covers no-animation/reduced-motion.
         dialog.addEventListener('animationend', settle, { once: true });
         setTimeout(settle, 350);
     }
@@ -183,7 +244,10 @@ export function setupCodeMirror(target, dialog) {
                 activeLineComp.reconfigure(next.highlightActiveLine ? highlightActiveLine() : []),
                 bracketComp.reconfigure(next.bracketMatching ? bracketMatching() : []),
                 closeBrComp.reconfigure(next.closeBrackets ? closeBrackets() : []),
-                fontComp.reconfigure(fontTheme(next.fontSize || 14)),
+                indentComp.reconfigure(indentExt(next.indentSize)),
+                foldComp.reconfigure(foldExt(next.codeFolding)),
+                autocompleteComp.reconfigure(autocompleteExt(next.autocomplete)),
+                fontComp.reconfigure(fontTheme(next.fontSize || 14, next.lineHeight)),
             ],
         });
     };
@@ -192,9 +256,8 @@ export function setupCodeMirror(target, dialog) {
         host.setAttribute('aria-label', t('cmp.a11y.editor'));
     });
 
-    // Safety net for later size changes (fullscreen toggle, mobile keyboard).
-    // rAF-coalesced so bursts of resize events cost at most one measure/frame;
-    // idle = zero work. Disconnected on teardown so nothing keeps running.
+    // Remeasure on later size changes (fullscreen, mobile keyboard). rAF-coalesced
+    // so bursts cost one measure/frame; disconnected on teardown.
     let resizeObs = null;
     if (typeof ResizeObserver === 'function') {
         let pending = false;
@@ -206,9 +269,8 @@ export function setupCodeMirror(target, dialog) {
         resizeObs.observe(host);
     }
 
-    // Flush the editor's current contents back into the source textarea. The
-    // updateListener already mirrors on every change, but this guarantees a final
-    // sync on close regardless of how the dialog was dismissed (no lost edits).
+    // Final flush to the source textarea on close, in case a last input event
+    // didn't fire (no lost edits regardless of how the dialog was dismissed).
     const syncToTarget = () => {
         try {
             const text = editor.state.doc.toString();
@@ -224,6 +286,7 @@ export function setupCodeMirror(target, dialog) {
     // Teardown on <dialog> close or DOM detach.
     const cleanup = () => {
         syncToTarget();
+        try { foldCancel?.(); } catch { /* ignore */ }
         try { resizeObs?.disconnect(); } catch { /* ignore */ }
         try { editor.destroy(); } catch { /* ignore */ }
         offSettings?.();
@@ -274,11 +337,43 @@ function openQuickSettings(editor, host, dialog, applyFn) {
             </span>
         </label>
 
+        <label class="cmp--row">
+            <span data-i18n="cmp.settings.code_folding"></span>
+            <span class="cmp--qs-switch">
+                <input type="checkbox" data-qs="codeFolding" />
+                <span class="cmp--qs-track"><span class="cmp--qs-thumb"></span></span>
+            </span>
+        </label>
+
+        <label class="cmp--row">
+            <span data-i18n="cmp.settings.fold_on_open"></span>
+            <span class="cmp--qs-switch">
+                <input type="checkbox" data-qs="foldOnOpen" />
+                <span class="cmp--qs-track"><span class="cmp--qs-thumb"></span></span>
+            </span>
+        </label>
+
+        <label class="cmp--row">
+            <span data-i18n="cmp.settings.autocomplete"></span>
+            <span class="cmp--qs-switch">
+                <input type="checkbox" data-qs="autocomplete" />
+                <span class="cmp--qs-track"><span class="cmp--qs-thumb"></span></span>
+            </span>
+        </label>
+
         <div class="cmp--row">
             <span data-i18n="cmp.settings.font_size"></span>
             <span class="cmp--qs-slider-wrap">
                 <input type="range" class="cmp--qs-slider" min="10" max="28" step="1" data-qs="fontSize" />
                 <span class="cmp--qs-chip" data-qs-out="fontSize">14</span>
+            </span>
+        </div>
+
+        <div class="cmp--row">
+            <span data-i18n="cmp.settings.line_height"></span>
+            <span class="cmp--qs-slider-wrap">
+                <input type="range" class="cmp--qs-slider" min="1" max="2.4" step="0.1" data-qs="lineHeight" />
+                <span class="cmp--qs-chip" data-qs-out="lineHeight">1.5</span>
             </span>
         </div>
 
@@ -307,11 +402,18 @@ function openQuickSettings(editor, host, dialog, applyFn) {
     // Write current settings into the controls
     const syncFromSettings = (s) => {
         const fsz = Math.max(10, Math.min(28, Number(s.fontSize) || 14));
+        const lh = Math.max(1, Math.min(2.4, Number(s.lineHeight) || 1.5));
         pop.querySelector('[data-qs="lineNumbers"]').checked = !!s.lineNumbers;
         pop.querySelector('[data-qs="lineWrap"]').checked = !!s.lineWrap;
+        pop.querySelector('[data-qs="codeFolding"]').checked = !!s.codeFolding;
+        pop.querySelector('[data-qs="foldOnOpen"]').checked = !!s.foldOnOpen;
+        pop.querySelector('[data-qs="autocomplete"]').checked = !!s.autocomplete;
         const slider = pop.querySelector('[data-qs="fontSize"]');
         slider.value = String(fsz);
         pop.querySelector('[data-qs-out="fontSize"]').textContent = String(fsz);
+        const lhSlider = pop.querySelector('[data-qs="lineHeight"]');
+        lhSlider.value = String(lh);
+        pop.querySelector('[data-qs-out="lineHeight"]').textContent = lh.toFixed(1);
         themeSel.value = THEME_IDS.includes(s.theme) ? s.theme : 'auto';
     };
     syncFromSettings(getSettings());

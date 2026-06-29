@@ -1,6 +1,6 @@
 {
   "name": "codemirrorpro",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "A fancier, mobile-friendly expanded text editor for SillyTavern. Fork of Extension-CodeMirror by Cohee1207.",
   "private": true,
   "repository": {

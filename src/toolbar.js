@@ -1,5 +1,5 @@
 import { openSearchPanel, closeSearchPanel, searchPanelOpen } from '@codemirror/search';
-import { undo, redo } from '@codemirror/commands';
+import { undo, redo, selectAll } from '@codemirror/commands';
 import { t, onLocaleChange, formatNumber } from './i18n.js';
 
 function toast(type, key, params) {
@@ -68,6 +68,19 @@ async function copyAll(editor) {
     }
 }
 
+// Empty the doc in one undoable transaction (no confirm; Ctrl+Z restores).
+function clearAll(editor) {
+    const len = editor.state.doc.length;
+    if (!len) { toast('info', 'cmp.toast.already_empty'); return; }
+    editor.dispatch({
+        changes: { from: 0, to: len, insert: '' },
+        selection: { anchor: 0 },
+        scrollIntoView: true,
+    });
+    editor.focus();
+    toast('success', 'cmp.toast.cleared');
+}
+
 // Fullscreen: outrank ST's inline dialog styles via !important.
 // Snapshot previous style so exit restores ST's positioning cleanly.
 const SAVED_INLINE = new WeakMap();
@@ -129,8 +142,10 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
             openSearchPanel(editor);
         }
     });
+    const bSelectAll = mkBtn('fa-solid fa-object-group', 'cmp.toolbar.select_all', () => { selectAll(editor); editor.focus(); });
     const bPaste = mkBtn('fa-solid fa-paste', 'cmp.toolbar.paste', () => pasteIntoEditor(editor));
     const bCopy = mkBtn('fa-solid fa-copy', 'cmp.toolbar.copy', () => copyAll(editor));
+    const bClear = mkBtn('fa-solid fa-eraser', 'cmp.toolbar.clear', () => clearAll(editor), 'cmp--btn-danger');
 
     let fsGuard = null;
     // Drive fullscreen to an explicit state and keep the button visuals + guard in
@@ -168,7 +183,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const groups = [
         [bUndo, bRedo],
         [bSearch],
-        [bPaste, bCopy],
+        [bSelectAll, bPaste, bCopy, bClear],
         [bFull, bSettings],
     ];
     groups.forEach((group, idx) => {
@@ -185,8 +200,84 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     const status = document.createElement('div');
     status.className = 'cmp--status';
 
-    root.appendChild(langChip);
-    root.appendChild(btnGroup);
+    // ── Overflow scroll arrows ────────────────────────────────────
+    // Content scrolls in its own track; arrows are absolute overlays outside the
+    // scroll flow, so they stay put and never cause flex/sticky jank. CSS reacts
+    // to the data-overflow-* attrs (opacity only → no reflow).
+    const track = document.createElement('div');
+    track.className = 'cmp--toolbar-track';
+
+    const reduceMotion = typeof matchMedia === 'function'
+        && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const mkArrow = (dir, iconClass, labelKey) => {
+        const a = document.createElement('button');
+        a.type = 'button';
+        a.className = `cmp--scroll-arrow cmp--scroll-${dir}`;
+        a.setAttribute('formnovalidate', '');
+        a.setAttribute('tabindex', '-1');
+        a.setAttribute('aria-hidden', 'true');
+        a.setAttribute('data-i18n-title', labelKey);
+        a.title = t(labelKey);
+        a.setAttribute('aria-label', t(labelKey));
+        const i = document.createElement('i');
+        i.className = iconClass;
+        a.appendChild(i);
+        a.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const amount = Math.max(80, Math.round(track.clientWidth * 0.7));
+            track.scrollBy({
+                left: dir === 'left' ? -amount : amount,
+                behavior: reduceMotion ? 'auto' : 'smooth',
+            });
+        });
+        return a;
+    };
+    const arrowLeft = mkArrow('left', 'fa-solid fa-chevron-left', 'cmp.toolbar.scroll_left');
+    const arrowRight = mkArrow('right', 'fa-solid fa-chevron-right', 'cmp.toolbar.scroll_right');
+
+    // Cache geometry (refreshed on resize only) so the scroll path reads just
+    // scrollLeft and writes attrs only on change → no layout thrash.
+    let maxScroll = 0;
+    let lastL = null;
+    let lastR = null;
+    let scrollPending = false;
+    const applyOverflow = () => {
+        const x = track.scrollLeft;
+        const l = x > 1;
+        const r = x < maxScroll - 1;
+        if (l !== lastL) { lastL = l; root.toggleAttribute('data-overflow-left', l); }
+        if (r !== lastR) { lastR = r; root.toggleAttribute('data-overflow-right', r); }
+    };
+    const onScroll = () => {
+        if (scrollPending) return;
+        scrollPending = true;
+        requestAnimationFrame(() => { scrollPending = false; applyOverflow(); });
+    };
+    // Refresh cached geometry, then re-evaluate. For resize/mount.
+    const updateOverflow = () => {
+        maxScroll = track.scrollWidth - track.clientWidth;
+        applyOverflow();
+    };
+
+    track.addEventListener('scroll', onScroll, { passive: true });
+    let arrowResizeObs = null;
+    if (typeof ResizeObserver === 'function') {
+        let pending = false;
+        arrowResizeObs = new ResizeObserver(() => {
+            if (pending) return;
+            pending = true;
+            requestAnimationFrame(() => { pending = false; updateOverflow(); });
+        });
+        arrowResizeObs.observe(track);
+    }
+
+    track.appendChild(langChip);
+    track.appendChild(btnGroup);
+    root.appendChild(track);
+    root.appendChild(arrowLeft);
+    root.appendChild(arrowRight);
 
     function updateLangChip() {
         const id = getLanguage?.() || 'plain';
@@ -199,7 +290,12 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         const line = editor.state.doc.lineAt(sel.head);
         const col = sel.head - line.from + 1;
         const chars = editor.state.doc.length;
-        const text = `${t('cmp.status.position', { line: line.number, col })} · ${t('cmp.status.chars', { count: formatNumber(chars) })}`;
+        const doc = editor.state.doc.toString();
+        const m = doc.match(/\S+/g);
+        const words = m ? m.length : 0;
+        const text = `${t('cmp.status.position', { line: line.number, col })}`
+            + ` · ${t('cmp.status.words', { count: formatNumber(words) })}`
+            + ` · ${t('cmp.status.chars', { count: formatNumber(chars) })}`;
         status.textContent = text;
     }
 
@@ -222,6 +318,8 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         updateStatus();
     }
     rerenderLabels();
+    // Initial read once laid out.
+    requestAnimationFrame(updateOverflow);
 
     const offLocale = onLocaleChange(rerenderLabels);
 
@@ -229,6 +327,9 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         offLocale?.();
         fsGuard?.disconnect();
         fsGuard = null;
+        try { arrowResizeObs?.disconnect(); } catch { /* ignore */ }
+        arrowResizeObs = null;
+        track.removeEventListener('scroll', onScroll);
         if (dialog?.classList?.contains('cmp--fullscreen')) {
             dialog.classList.remove('cmp--fullscreen');
             restoreInline(dialog);
@@ -236,7 +337,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         root.remove();
     }
 
-    return { root, status, destroy, updateStatus, updateLangChip, rerenderLabels, syncSearchState, setFullscreen };
+    return { root, status, destroy, updateStatus, updateLangChip, rerenderLabels, syncSearchState, setFullscreen, updateOverflow };
 }
 
 export { isMobileDevice };

@@ -12,6 +12,11 @@ export const DEFAULTS = Object.freeze({
     highlightActiveLine: true,
     bracketMatching: true,
     closeBrackets: true,
+    indentSize: 4,        // spaces per Tab / auto-indent
+    lineHeight: 1.5,      // content line spacing
+    codeFolding: false,   // opt-in; off avoids gutter clutter for prose
+    foldOnOpen: false,    // start folded when codeFolding is on
+    autocomplete: false,  // opt-in
     defaultLanguage: 'markdown',
     enabledLanguages: {
         css: true,
@@ -240,9 +245,38 @@ const TEMPLATE = `
                     <span class="cmp--switch"><input type="checkbox" data-cmp="closeBrackets" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
                 </label>
                 <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.code_folding"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="codeFolding" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.fold_on_open"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="foldOnOpen" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.autocomplete"></span>
+                    <span class="cmp--switch"><input type="checkbox" data-cmp="autocomplete" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
+                </label>
+                <label class="cmp--toggle-row">
                     <span class="cmp--row-label" data-i18n="cmp.settings.remember_fullscreen"></span>
                     <span class="cmp--switch"><input type="checkbox" data-cmp="rememberFullscreen" /><span class="cmp--switch-track"><span class="cmp--switch-thumb"></span></span></span>
                 </label>
+
+                <div class="cmp--row cmp--row-stack">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.indent_size"></span>
+                    <div class="cmp--seg" role="radiogroup" aria-label="Indent size">
+                        <button type="button" class="cmp--seg-btn" data-cmp-seg="indentSize" data-value="2"><span>2</span></button>
+                        <button type="button" class="cmp--seg-btn" data-cmp-seg="indentSize" data-value="4"><span>4</span></button>
+                        <button type="button" class="cmp--seg-btn" data-cmp-seg="indentSize" data-value="8"><span>8</span></button>
+                    </div>
+                </div>
+
+                <div class="cmp--row">
+                    <span class="cmp--row-label" data-i18n="cmp.settings.line_height"></span>
+                    <div class="cmp--slider-wrap">
+                        <input type="range" class="cmp--slider" min="1" max="2.4" step="0.1" data-cmp="lineHeight" />
+                        <span class="cmp--slider-chip"><span data-cmp-out="lineHeight">1.5</span></span>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -367,6 +401,9 @@ function syncInputs(root, settings) {
     root.querySelectorAll('[data-cmp-preview="fontSize"]').forEach(el => {
         el.style.fontSize = `${fsNum}px`;
     });
+    // Line-height slider output (one decimal place)
+    const lhNum = Number(settings.lineHeight) || 1.5;
+    root.querySelectorAll('[data-cmp-out="lineHeight"]').forEach(el => { el.textContent = lhNum.toFixed(1); });
     // Theme swatches — reflect active selection
     const activeTheme = THEMES.includes(settings.theme) ? settings.theme : 'auto';
     root.querySelectorAll('[data-cmp-theme]').forEach(el => {
@@ -443,7 +480,9 @@ export function mountSettingsPanel() {
         const path = el.getAttribute('data-cmp');
         if (!path) return;
         const v = Number(el.value);
-        root.querySelectorAll(`[data-cmp-out="${path}"]`).forEach(o => { o.textContent = String(v); });
+        const isFloat = el.step && Number(el.step) < 1;
+        const shown = isFloat ? v.toFixed(1) : String(v);
+        root.querySelectorAll(`[data-cmp-out="${path}"]`).forEach(o => { o.textContent = shown; });
         root.querySelectorAll(`[data-cmp-preview="${path}"]`).forEach(p => { p.style.fontSize = `${v}px`; });
         // Push intermediate values so the editor responds live while dragging.
         const patch = {};
@@ -468,7 +507,10 @@ export function mountSettingsPanel() {
         if (seg) {
             ev.preventDefault();
             const path = seg.getAttribute('data-cmp-seg');
-            const val = seg.getAttribute('data-value');
+            const raw = seg.getAttribute('data-value');
+            // Numeric segmented controls (e.g. indentSize) must persist as numbers
+            // so editor compartments and syncInputs comparisons behave correctly.
+            const val = /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw;
             const patch = {};
             setNested(patch, path, val);
             saveSettings(patch);

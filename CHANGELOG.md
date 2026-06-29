@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.4.0 — Text actions, CSS/Markdown editor options, toolbar scroll arrows (2026-06)
+
+### ✦ New features
+
+- **Select all** button — selects the whole document.
+- **Clear all** button — empties the editor in one undoable step.
+- **Word count** in the status bar — `Ln · N words · N chars`.
+- **Indent size** (2 / 4 / 8) — indentation width for Tab and auto-indent.
+- **Line height** (1.0–2.4) — content line spacing.
+- **Code folding** toggle — fold gutter for collapsing blocks. Off by default.
+- **Fold all on open** toggle — open with all blocks collapsed. Off by default.
+- **Autocomplete** toggle — completion with CSS / HTML / JS / JSON hints. Off by default.
+- **Toolbar scroll arrows** — faint `‹` / `›` chevrons appear when the toolbar
+  overflows; click to scroll, with a soft edge-fade.
+
+### ✦ Polish
+
+- All new editor options apply live and are in both the settings drawer and the
+  in-editor quick-settings popover.
+- Fold-on-open handles large files smoothly.
+- Touch-friendly fold gutter, autocomplete dropdown, and scroll arrows.
+
+### ✦ Internal
+
+- New live-reconfigure Compartments for indent, folding, autocomplete, line height.
+- Zero new dependencies.
+
+---
+
 ## 2.3.0 — Auto-save, remembered fullscreen, first-open render fix (2026-06)
 
 ### ✦ New features

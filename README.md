@@ -57,13 +57,15 @@ One consistent control strip, adapts per device.
 
 -   ✦ **Search** — opens CodeMirror's native search panel, styled to match ST
 -   ✦ **Replace** — full find-and-replace (was keyboard-only on desktop, absent on mobile)
+-   ✦ **Select all** — selects the whole document (`Ctrl+A` equivalent)
 -   ✦ **Paste** — reads system clipboard, inserts at cursor
 -   ✦ **Copy all** — grabs full document to clipboard
+-   ✦ **Clear all** — empties the editor in one undoable step (`Ctrl+Z` restores)
 -   ✦ **Undo / Redo** — history buttons alongside `Ctrl+Z` / `Ctrl+Y`
 -   ✦ **Fullscreen toggle** — expand dialog to `100dvw × 100dvh`
 -   ✦ **Settings gear** — in-editor popover with quick toggles
 -   ✦ **Language chip** — shows detected language, click to override
--   ✦ **Live status bar** — `Ln 12, Col 5 · 1 234 chars` with locale-aware number formatting
+-   ✦ **Live status bar** — `Ln 12, Col 5 · 248 words · 1 234 chars` with locale-aware number formatting
 
 ### ◇ Seven themes
 
@@ -234,17 +236,18 @@ After install, reload SillyTavern. The extension appears as **⊹ CODE MIRROR PR
 [](#editor-toolbar)
 
 ```
-  [CSS ▾]  [🔍] [↔] [📋] [📄] [↺] [↻] [⛶] [⚙]          Ln 12, Col 5 · 1 234 chars
-   │        │    │    │    │    │   │   │   │
-   │        │    │    │    │    │   │   │   └─ Settings popover (quick toggles)
-   │        │    │    │    │    │   │   └───── Fullscreen toggle
-   │        │    │    │    │    │   └───────── Redo
-   │        │    │    │    │    └───────────── Undo
-   │        │    │    │    └────────────────── Copy all to clipboard
-   │        │    │    └─────────────────────── Paste from clipboard
-   │        │    └──────────────────────────── Find & replace panel
-   │        └───────────────────────────────── Find panel
-   └────────────────────────────────────────── Language override (click to switch)
+  [CSS ▾]  [↺] [↻] | [🔍] | [⧉] [📋] [📄] [⌫] | [⛶] [⚙]     Ln 12, Col 5 · 248 words · 1 234 chars
+   │        │   │     │      │   │   │   │      │   │
+   │        │   │     │      │   │   │   │      │   └─ Settings popover (quick toggles)
+   │        │   │     │      │   │   │   │      └───── Fullscreen toggle
+   │        │   │     │      │   │   │   └──────────── Clear all (undoable)
+   │        │   │     │      │   │   └──────────────── Copy all to clipboard
+   │        │   │     │      │   └──────────────────── Paste from clipboard
+   │        │   │     │      └──────────────────────── Select all
+   │        │   │     └─────────────────────────────── Find & replace panel
+   │        │   └───────────────────────────────────── Redo
+   │        └───────────────────────────────────────── Undo
+   └────────────────────────────────────────────────── Language override (click to switch)
 ```
 
 ### Desktop shortcuts
@@ -254,8 +257,10 @@ After install, reload SillyTavern. The extension appears as **⊹ CODE MIRROR PR
 ```
   Ctrl+F            Open search
   Ctrl+H            Open replace
+  Ctrl+A            Select all
   Ctrl+Z            Undo
   Ctrl+Y            Redo  (or Ctrl+Shift+Z)
+  Ctrl+Space        Trigger autocomplete (when enabled)
   Tab               Insert indent (respects focus — accessibility-safe)
   Esc               Close search panel
 ```
@@ -289,6 +294,11 @@ Open **Extensions → ⊹ CODE MIRROR PRO ⊹**.
 | **Editor** | Highlight active line | `on` |
 | **Editor** | Bracket matching | `on` |
 | **Editor** | Auto-close brackets | `on` |
+| **Editor** | Code folding | `off` |
+| **Editor** | Fold all on open | `off` |
+| **Editor** | Autocomplete | `off` |
+| **Editor** | Indent size | `4` |
+| **Editor** | Line height | `1.5` |
 | **Languages** | Default language | `Markdown` |
 | **Languages** | Enabled: CSS / Markdown / HTML / JSON / JavaScript | all `on` |
 | **Toolbar** | Show toolbar | `on` |
