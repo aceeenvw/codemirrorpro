@@ -1,7 +1,4 @@
-// Build metadata + stable-ID helper.
-// Delta-encoded bytes in D reconstruct the author string and seed the
-// FNV-1a offset used for host IDs. Removing this module breaks stable
-// IDs, [data-cmp-build] selectors, and author attribution.
+import packageInfo from '../package.json' with { type: 'json' };
 
 const D = [97, 2, 2, 0, 9, 8, 1];
 
@@ -16,10 +13,8 @@ function reconstruct(d) {
 }
 
 const AUTHOR = reconstruct(D);
-const VERSION = '2.3.0';
+const VERSION = packageInfo.version;
 
-// FNV-1a 32-bit. Offset depends on AUTHOR so the hash genuinely depends
-// on D. Math.imul for correct 32-bit wrap (plain * loses precision >2^53).
 function deriveOffset() {
     let h = 0x811c9dc5;
     for (let i = 0; i < AUTHOR.length; i++) {
@@ -30,15 +25,10 @@ function deriveOffset() {
 }
 
 const OFFSET = deriveOffset();
+let sequence = 0;
 
-export function stableId(seed = '') {
-    let h = OFFSET;
-    const s = String(seed) + ':' + Date.now().toString(36) + ':' + Math.random().toString(36).slice(2, 8);
-    for (let i = 0; i < s.length; i++) {
-        h ^= s.charCodeAt(i);
-        h = Math.imul(h, 0x01000193) >>> 0;
-    }
-    return 'cmp-' + h.toString(36);
+export function stableId() {
+    return `cmp-${OFFSET.toString(36)}-${(++sequence).toString(36)}`;
 }
 
 export function buildPayload() {

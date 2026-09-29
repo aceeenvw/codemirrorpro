@@ -2,8 +2,37 @@
 import { EditorView } from '@codemirror/view';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as T } from '@lezer/highlight';
+import { createScope } from './lifecycle.js';
+import { THEME_IDS } from './options.js';
+
+const rgb = hex => /^#[\da-f]{6}$/i.test(hex) ? hex.slice(1).match(/../g).map(value => parseInt(value, 16)) : null;
+const luminance = color => {
+    const linear = color.map(value => { const n = value / 255; return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4; });
+    return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+};
+export function contrastRatio(a, b) {
+    const x = luminance(rgb(a)), y = luminance(rgb(b));
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+function readablePalette(source, dark) {
+    const palette = { ...source };
+    const keys = ['fg', 'keyword', 'name', 'function', 'constant', 'type', 'operator', 'comment', 'link', 'heading', 'atom', 'string', 'invalid', 'gutterFg'];
+    for (const key of keys) {
+        const original = rgb(palette[key]);
+        const backgrounds = (key === 'gutterFg' ? [palette.gutterBg, palette.activeLineGutter]
+            : [palette.bg, palette.activeLine, palette.panelBg]).filter(value => rgb(value));
+        if (!original || !backgrounds.length) continue;
+        for (let step = 0; step <= 30; step++) {
+            const color = '#' + original.map(value => Math.round(value + ((dark ? 255 : 0) - value) * step / 30).toString(16).padStart(2, '0')).join('');
+            if (backgrounds.every(bg => contrastRatio(color, bg) >= 4.5)) { palette[key] = color; break; }
+        }
+    }
+    return palette;
+}
 
 function buildTheme(name, palette, dark) {
+    palette = readablePalette(palette, dark);
     const theme = EditorView.theme({
         '&': {
             color: palette.fg,
@@ -43,6 +72,10 @@ function buildTheme(name, palette, dark) {
             border: `1px solid ${palette.border}`,
             color: palette.fg,
         },
+        '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: palette.selection },
+        '.cm-foldPlaceholder': { backgroundColor: palette.panelBg, color: palette.fg, borderColor: palette.border },
+        '.cmp-macro-delimiter': { color: palette.fg },
+        '.cmp-macro-name': { color: palette.fg, textDecorationColor: palette.fg },
     }, { dark });
 
     const highlight = HighlightStyle.define([
@@ -64,17 +97,12 @@ function buildTheme(name, palette, dark) {
         { tag: T.invalid, color: palette.invalid },
     ]);
 
-    return { name, dark, extension: [theme, syntaxHighlighting(highlight)] };
+    return { name, dark, palette, extension: [theme, syntaxHighlighting(highlight)] };
 }
 
 // Reads SmartTheme CSS vars so highlighting inherits the active ST look.
 function autoPalette() {
-    const css = (v, fb) => {
-        try {
-            const raw = getComputedStyle(document.body).getPropertyValue(v).trim();
-            return raw || fb;
-        } catch { return fb; }
-    };
+    const css = (v, fb) => `var(${v}, ${fb})`;
     const quote = css('--SmartThemeQuoteColor', '#b48ead');
     const em = css('--SmartThemeEmColor', '#d08770');
     const body = css('--SmartThemeBodyColor', '#e0e0e0');
@@ -87,7 +115,7 @@ function autoPalette() {
         activeLine: 'rgba(200,200,200,0.06)',
         activeLineGutter: 'rgba(200,200,200,0.1)',
         gutterBg: 'transparent',
-        gutterFg: 'rgba(200,200,200,0.5)',
+        gutterFg: body,
         panelBg: css('--SmartThemeBlurTintColor', 'rgba(0,0,0,0.6)'),
         border: css('--SmartThemeBorderColor', 'rgba(255,255,255,0.15)'),
         matchBg: 'rgba(255, 200, 0, 0.25)',
@@ -99,9 +127,9 @@ function autoPalette() {
         name: body,
         function: css('--SmartThemeUnderlineColor', '#8fbcbb'),
         constant: em,
-        type: '#ebcb8b',
-        operator: '#81a1c1',
-        comment: 'rgba(200,200,200,0.5)',
+        type: em,
+        operator: body,
+        comment: body,
         link: quote,
         heading: em,
         atom: em,
@@ -200,7 +228,25 @@ const GITHUB_DARK = {
     atom: '#79c0ff', string: '#a5d6ff', invalid: '#ff7b72',
 };
 
+const CACHE = new Map();
+
 export function getTheme(id) {
+    if (!THEME_IDS.includes(id)) id = 'auto';
+    let dark = true;
+    if (id === 'auto') {
+        try {
+            const values = getComputedStyle(document.body).color.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+            if (values?.length === 3) dark = values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722 > 128;
+        } catch { /* host not mounted yet */ }
+    }
+    const key = id === 'auto' ? `auto:${dark}` : id;
+    if (CACHE.has(key)) return CACHE.get(key);
+    const theme = makeTheme(id, dark);
+    CACHE.set(key, theme);
+    return theme;
+}
+
+function makeTheme(id, dark) {
     switch (id) {
         case 'one-dark': return buildTheme('one-dark', ONE_DARK, true);
         case 'dracula': return buildTheme('dracula', DRACULA, true);
@@ -210,6 +256,21 @@ export function getTheme(id) {
         case 'github-dark': return buildTheme('github-dark', GITHUB_DARK, true);
         case 'auto':
         default:
-            return buildTheme('auto', autoPalette(), true);
+            return buildTheme('auto', autoPalette(), dark);
     }
+}
+
+export function watchHostTheme(onChange) {
+    const scope = createScope();
+    let pending = false;
+    const observer = new MutationObserver(() => {
+        if (pending) return;
+        pending = true;
+        scope.frame(() => { pending = false; onChange(); });
+    });
+    for (const element of [document.documentElement, document.body]) {
+        observer.observe(element, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+    scope.defer(() => observer.disconnect());
+    return () => scope.destroy();
 }

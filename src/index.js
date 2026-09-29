@@ -6,6 +6,7 @@ import { setupCodeMirror } from './editor.js';
 import { loadSettings, mountSettingsPanel, onSettingsChange } from './settings.js';
 import { registerDict, setLocale, detectLocale } from './i18n.js';
 import { META } from './build-info.js';
+import { createScope } from './lifecycle.js';
 
 import enUS from '../i18n/en-us.json';
 import ruRU from '../i18n/ru-ru.json';
@@ -15,9 +16,11 @@ registerDict('ru-ru', ruRU);
 
 const STATE = {
     observer: null,
-    settingsMounted: false,
+    settingsRoot: null,
     ready: false,
 };
+const scope = createScope();
+const editors = new Map();
 
 function applyLocaleFromSettings() {
     const s = loadSettings();
@@ -25,26 +28,33 @@ function applyLocaleFromSettings() {
 }
 
 function processAddedNode(node) {
+    if (!scope.alive) return;
     if (!(node instanceof HTMLElement)) return;
-
-    const dialogs = [];
-    if (node instanceof HTMLDialogElement) dialogs.push(node);
-    else node.querySelectorAll?.('dialog')?.forEach?.(d => dialogs.push(d));
-
-    for (const dialog of dialogs) {
-        const target = dialog.querySelector('textarea.maximized_textarea');
-        if (target && !target.classList.contains('displayNone')) {
-            setupCodeMirror(target, dialog);
-        }
+    if (node.closest('.cmp--host, .cmp--settings')) return;
+    const targets = node.matches('textarea.maximized_textarea') ? [node]
+        : node.querySelectorAll('textarea.maximized_textarea');
+    for (const target of targets) {
+        const dialog = target.closest('dialog');
+        if (!dialog || editors.has(target) || target.classList.contains('displayNone')) continue;
+        const handle = setupCodeMirror(target, dialog, { onCleanup: () => editors.delete(target) });
+        if (handle) editors.set(target, { ...handle, dialog });
     }
 }
 
 function startObserver() {
-    if (STATE.observer) return;
+    if (STATE.observer || !scope.alive) return;
     STATE.observer = new MutationObserver((mutations) => {
+        let removed = false;
         for (const m of mutations) {
             m.addedNodes.forEach(processAddedNode);
+            if (m.removedNodes.length) removed = true;
         }
+        if (removed) {
+            for (const [target, handle] of editors) {
+                if (!target.isConnected || !handle.dialog.isConnected) handle.cleanup();
+            }
+        }
+        if (!STATE.settingsRoot?.isConnected) tryMountSettings();
     });
     STATE.observer.observe(document.body, { childList: true, subtree: true });
 
@@ -58,13 +68,13 @@ function stopObserver() {
 }
 
 function tryMountSettings() {
-    if (STATE.settingsMounted) return;
-    const root = mountSettingsPanel();
-    if (root) STATE.settingsMounted = true;
+    if (!scope.alive || STATE.settingsRoot?.isConnected) return;
+    STATE.settingsRoot?.cmpCleanup?.();
+    STATE.settingsRoot = mountSettingsPanel();
 }
 
 function init() {
-    if (STATE.ready) return;
+    if (STATE.ready || !scope.alive) return;
     STATE.ready = true;
 
     loadSettings();
@@ -73,36 +83,42 @@ function init() {
     startObserver();
     tryMountSettings();
 
-    // Retry: ST's #extensions_settings may not exist on first tick.
-    let retries = 0;
-    const timer = setInterval(() => {
-        tryMountSettings();
-        if (STATE.settingsMounted || ++retries > 40) clearInterval(timer);
-    }, 500);
-
-    onSettingsChange(() => applyLocaleFromSettings());
-
-    window.addEventListener('pagehide', stopObserver, { once: true });
+    scope.defer(onSettingsChange(() => applyLocaleFromSettings()));
 }
 
 // Multi-trigger init. Idempotent via STATE.ready guard.
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
+    scope.listen(document, 'DOMContentLoaded', init, { once: true });
 } else {
     init();
 }
 try {
     const ctx = globalThis.SillyTavern?.getContext?.();
     const ev = ctx?.eventSource;
-    const types = ctx?.event_types || ctx?.eventTypes;
-    if (ev && types?.APP_READY) ev.on(types.APP_READY, init);
+    const types = ctx?.eventTypes || ctx?.event_types;
+    if (ev && types?.APP_READY) {
+        ev.on(types.APP_READY, init);
+        scope.defer(() => ev.removeListener(types.APP_READY, init));
+    }
 } catch { /* ignore */ }
 
-// Debug handle. Frozen; no non-configurable props (cleanup-friendly).
+const closeEditors = () => { for (const handle of editors.values()) handle.cleanup(); };
+scope.listen(window, 'pagehide', () => { stopObserver(); closeEditors(); });
+scope.listen(window, 'pageshow', () => { if (STATE.ready) { startObserver(); tryMountSettings(); } });
+const cleanup = () => {
+    scope.destroy();
+    stopObserver();
+    closeEditors();
+    STATE.settingsRoot?.cmpCleanup?.();
+    STATE.settingsRoot?.remove();
+    if (globalThis.CodeMirrorPro?.cleanup === cleanup) delete globalThis.CodeMirrorPro;
+};
+
 try {
     globalThis.CodeMirrorPro = Object.freeze({
         version: META.version,
         author: META.author,
         stopObserver,
+        cleanup,
     });
 } catch { /* ignore */ }

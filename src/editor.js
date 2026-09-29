@@ -8,28 +8,57 @@ import { cmpSearch } from './search-panel.js';
 
 import { buildPayload, stableId } from './build-info.js';
 import { getSettings, onSettingsChange, saveSettings } from './settings.js';
-import { detectLanguage, loadLanguageExtension, LANGUAGES } from './languages.js';
-import { getTheme } from './themes.js';
+import { detectLanguage, loadLanguageExtension, LANGUAGES, getFieldPurpose } from './languages.js';
+import { getTheme, watchHostTheme } from './themes.js';
 import { buildToolbar, isMobileDevice } from './toolbar.js';
-import { t, onLocaleChange } from './i18n.js';
+import { t, onLocaleChange, ownTranslations, translateElements } from './i18n.js';
+import { createScope } from './lifecycle.js';
+import { THEME_IDS } from './options.js';
+import { bindPopover } from './popover.js';
+import { createMacroSource, macroEligible, macroExtensions } from './macros.js';
+import { FORMATS, formatSelection, markdownHotkeys } from './markdown.js';
+import { profileFor, resolveProfile, profileLanguage } from './profiles.js';
+import { fail } from './log.js';
 
 const ATTACHED = new WeakSet();
-const THEME_IDS = ['auto', 'one-dark', 'solarized-light', 'solarized-dark', 'github-light', 'github-dark', 'dracula'];
 
-export function setupCodeMirror(target, dialog) {
+export function setupCodeMirror(target, dialog, { onCleanup } = {}) {
     if (!target || !target.parentElement) return;
     if (ATTACHED.has(target)) return;
     ATTACHED.add(target);
 
-    const settings = getSettings();
-    const host = document.createElement('div');
+    const scope = createScope();
+    let editor;
+    let toolbar;
+    let closePopover = null;
+    let languageRequest = 0;
+    const wasHidden = target.classList.contains('displayNone');
+    const hadDialogClass = dialog?.classList.contains('cmp--active-dialog');
+    let host;
+    scope.defer(() => editor?.destroy());
+    scope.defer(() => toolbar?.destroy());
+    const cleanup = () => {
+        if (!scope.alive) return;
+        closePopover?.(false);
+        scope.destroy();
+        host?.remove();
+        if (!wasHidden) target.classList.remove('displayNone');
+        if (!hadDialogClass) dialog?.classList.remove('cmp--active-dialog');
+        ATTACHED.delete(target);
+        onCleanup?.();
+    };
+
+    try {
+
+    const purpose = getFieldPurpose(target);
+    let profileChoice = 'auto';
+    let languageChosen = false;
+    const settings = resolveProfile(getSettings(), purpose, profileChoice);
+    host = document.createElement('div');
     host.classList.add('codemirror-host', 'cmp--host');
     host.id = stableId('host');
     host.dataset.cmpBuild = buildPayload();
     host.dataset.author = 'aceenvw';
-    host.setAttribute('role', 'textbox');
-    host.setAttribute('aria-multiline', 'true');
-    host.setAttribute('aria-label', t('cmp.a11y.editor'));
 
     target.classList.add('displayNone');
     target.parentElement.appendChild(host);
@@ -56,11 +85,11 @@ export function setupCodeMirror(target, dialog) {
 
     const fontTheme = (px, lh) => EditorView.theme({
         '.cm-content': {
-            fontSize: `${px}px`,
+            fontSize: `${isMobileDevice() ? Math.max(16, px) : px}px`,
             fontFamily: 'var(--monoFontFamily)',
             lineHeight: String(clampLineHeight(lh)),
         },
-        '.cm-gutters': { fontSize: `${px}px`, fontFamily: 'var(--monoFontFamily)' },
+        '.cm-gutters': { fontSize: `${isMobileDevice() ? Math.max(16, px) : px}px`, fontFamily: 'var(--monoFontFamily)' },
     });
 
     const indentExt = (n) => {
@@ -68,24 +97,29 @@ export function setupCodeMirror(target, dialog) {
         return [indentUnit.of(' '.repeat(size)), EditorState.tabSize.of(size)];
     };
     const foldExt = (on) => (on ? [codeFolding(), foldGutter()] : []);
-    const autocompleteExt = (on) => (on ? autocompletion() : []);
+    const macroSource = createMacroSource(target);
+    const autocompleteExt = (on) => on ? autocompletion()
+        : macroEligible(target) ? autocompletion({ override: [macroSource] }) : [];
 
     let syncing = false;
 
-    const initialLang = detectLanguage(target, settings);
+    const initialLang = profileLanguage(settings, purpose, profileChoice, detectLanguage(target, settings));
     host.dataset.cmpLang = initialLang;
 
-    const editor = new EditorView({
+    editor = new EditorView({
         doc: target.value,
         extensions: [
             highlightSpecialChars(),
             history(),
             drawSelection(),
             dropCursor(),
+            EditorView.contentAttributes.of({ 'aria-label': t('cmp.a11y.editor') }),
             EditorState.allowMultipleSelections.of(true),
             indentOnInput(),
             highlightSelectionMatches(),
             cmpSearch(),
+            macroExtensions(target, macroSource),
+            markdownHotkeys(target),
             keymap.of([
                 ...closeBracketsKeymap,
                 ...defaultKeymap,
@@ -111,6 +145,7 @@ export function setupCodeMirror(target, dialog) {
                     syncing = true;
                     try {
                         target.value = update.state.doc.toString();
+                        target.setSelectionRange(update.state.selection.main.from, update.state.selection.main.to);
                         target.dispatchEvent(new Event('input', { bubbles: true }));
                     } finally {
                         syncing = false;
@@ -119,6 +154,7 @@ export function setupCodeMirror(target, dialog) {
                 if (update.selectionSet || update.docChanged) {
                     toolbar?.updateStatus?.();
                 }
+                if (update.docChanged) toolbar?.invalidateTokenCount();
                 if (update.transactions.length) toolbar?.syncSearchState?.();
             }),
         ],
@@ -136,23 +172,26 @@ export function setupCodeMirror(target, dialog) {
     let foldCancel = null;
 
     const maybeFoldOnOpen = () => {
-        const s = getSettings();
+        const s = resolveProfile(getSettings(), purpose, profileChoice);
         if (!s.codeFolding || !s.foldOnOpen) return;
-        requestAnimationFrame(() => {
+        const doc = editor.state.doc;
+        scope.frame(() => {
+            if (!resolveProfile(getSettings(), purpose, profileChoice).codeFolding || editor.state.doc !== doc) return;
             try {
                 const done = forceParsing(editor, editor.state.doc.length, FOLD_FIRST_BUDGET_MS);
                 foldAll(editor);
-                if (!done) scheduleRemainingFold();
+                if (!done) scheduleRemainingFold(doc);
             } catch { /* ignore */ }
         });
     };
 
-    const scheduleRemainingFold = () => {
-        const idle = globalThis.requestIdleCallback || ((fn) => { foldTimer = setTimeout(fn, 1); });
+    const scheduleRemainingFold = (doc) => {
+        foldCancel?.();
+        const idle = globalThis.requestIdleCallback || ((fn) => setTimeout(fn, 1));
         const cancelIdle = globalThis.cancelIdleCallback || ((id) => clearTimeout(id));
         let passes = 0;
         const step = () => {
-            if (!editor.dom.isConnected) return;
+            if (!scope.alive || !editor.dom.isConnected || !resolveProfile(getSettings(), purpose, profileChoice).codeFolding || editor.state.doc !== doc) return;
             let done = false;
             try { done = forceParsing(editor, editor.state.doc.length, FOLD_IDLE_BUDGET_MS); }
             catch { return; }
@@ -167,56 +206,78 @@ export function setupCodeMirror(target, dialog) {
     };
 
     let currentLang = initialLang;
-    loadLanguageExtension(initialLang).then(ext => {
-        if (ext) editor.dispatch({ effects: langComp.reconfigure(ext) });
-        maybeFoldOnOpen();
-    }).catch(() => {});
+    let desiredLanguage = initialLang;
+    const setLanguage = async (id, fold = false) => {
+        desiredLanguage = id;
+        const request = ++languageRequest;
+        const ext = await loadLanguageExtension(id);
+        if (!scope.alive || request !== languageRequest) return;
+        currentLang = id;
+        host.dataset.cmpLang = id;
+        editor.dispatch({ effects: langComp.reconfigure(ext || []) });
+        toolbar?.updateLangChip();
+        if (fold) maybeFoldOnOpen();
+    };
+    setLanguage(initialLang, true);
 
-    // Place the cursor at the start and focus after first paint.
-    requestAnimationFrame(() => {
-        editor.dispatch({ selection: { anchor: 0, head: 0 } });
+    // Focus after first paint without changing the current selection.
+    scope.frame(() => {
         editor.focus();
     });
 
     // The dialog measures mid open-animation against a non-final height. Remeasure
     // once the animation settles so the first paint isn't cramped.
     if (dialog) {
-        const remeasure = () => {
-            editor.requestMeasure();
-            editor.dispatch({ selection: { anchor: 0, head: 0 } });
-        };
         let done = false;
-        const settle = () => { if (done) return; done = true; remeasure(); };
+        const settle = (event) => {
+            if (done || (event && event.target !== dialog)) return;
+            done = true;
+            editor.requestMeasure();
+        };
         // animationend = open finished; timeout covers no-animation/reduced-motion.
-        dialog.addEventListener('animationend', settle, { once: true });
-        setTimeout(settle, 350);
+        scope.listen(dialog, 'animationend', settle);
+        scope.timeout(settle, 350);
     }
 
-    const toolbar = buildToolbar({
+    const togglePopover = (kind, open) => {
+        const same = closePopover?.alive && closePopover.kind === kind;
+        closePopover?.(false);
+        closePopover = same ? null : open();
+        if (closePopover) closePopover.kind = kind;
+    };
+    toolbar = buildToolbar({
         editor,
         dialog: dialog || host,
         settings,
         getLanguage: () => currentLang,
-        onSettingsClick: () => openQuickSettings(editor, host, dialog, applyLiveSettings),
+        markdownEnabled: () => currentLang === 'markdown' || target.classList.contains('mdHotkeys') || getFieldPurpose(target) === 'prose',
+        onFormatClick: (anchor) => togglePopover('format', () => openFormatPicker(host, anchor, editor)),
+        getProfile: () => profileFor(getSettings(), purpose, profileChoice),
+        onProfileClick: (anchor) => togglePopover('profile', () => openProfilePicker(host, anchor, profileChoice, (choice) => {
+            profileChoice = choice;
+            applyLiveSettings(getSettings());
+        })),
+        onSettingsClick: (anchor) => togglePopover('settings', () => openQuickSettings(host, anchor)),
         // Persist the fullscreen choice only when the "remember" option is enabled.
         onFullscreenChange: (on) => {
             if (getSettings().rememberFullscreen) saveSettings({ fullscreenState: on });
         },
-        onLanguageClick: (anchor) => openLangPicker(anchor, currentLang, async (id) => {
-            currentLang = id;
-            host.dataset.cmpLang = id;
-            const ext = await loadLanguageExtension(id);
-            editor.dispatch({ effects: langComp.reconfigure(ext || []) });
-            toolbar.updateLangChip();
-        }),
+        onLanguageClick: (anchor) => togglePopover('language', () => openLangPicker(host, anchor, currentLang, (id) => {
+            languageChosen = true;
+            setLanguage(id);
+        })),
     });
 
-    const showToolbar = settings.toolbar?.show !== false
-        && (isMobileDevice() ? settings.mobileToolbar !== false : true);
-    if (showToolbar) {
-        if ((settings.toolbar?.position || 'top') === 'bottom') host.appendChild(toolbar.root);
+    const placeToolbar = (next) => {
+        toolbar.root.hidden = !next.toolbar.show || (isMobileDevice() && !next.mobileToolbar);
+        toolbar.root.dataset.position = next.toolbar.position;
+        closePopover?.(false);
+        if (next.toolbar.position === 'bottom') host.appendChild(toolbar.root);
         else host.insertBefore(toolbar.root, host.firstChild);
-    }
+        toolbar.updateOverflow();
+        editor.requestMeasure();
+    };
+    placeToolbar(settings);
     if (toolbar.status) {
         const strip = document.createElement('div');
         strip.className = 'cmp--statusbar';
@@ -225,7 +286,7 @@ export function setupCodeMirror(target, dialog) {
     }
 
     // Open fullscreen if: remembered state is on, or mobile auto-fullscreen is set.
-    // Use the toolbar's setter so inline styles + button visuals stay in sync;
+    // Use the toolbar's setter so the class and button stay in sync;
     // notify:false so restoring doesn't re-write the same setting.
     if (dialog) {
         const wantFs = (settings.rememberFullscreen && settings.fullscreenState)
@@ -235,26 +296,45 @@ export function setupCodeMirror(target, dialog) {
 
     toolbar.syncSearchState();
 
-    const applyLiveSettings = (next) => {
-        editor.dispatch({
-            effects: [
-                themeComp.reconfigure(getTheme(next.theme).extension),
-                wrapComp.reconfigure(next.lineWrap ? EditorView.lineWrapping : []),
-                linesComp.reconfigure(next.lineNumbers ? [lineNumbers(), highlightActiveLineGutter()] : []),
-                activeLineComp.reconfigure(next.highlightActiveLine ? highlightActiveLine() : []),
-                bracketComp.reconfigure(next.bracketMatching ? bracketMatching() : []),
-                closeBrComp.reconfigure(next.closeBrackets ? closeBrackets() : []),
-                indentComp.reconfigure(indentExt(next.indentSize)),
-                foldComp.reconfigure(foldExt(next.codeFolding)),
-                autocompleteComp.reconfigure(autocompleteExt(next.autocomplete)),
-                fontComp.reconfigure(fontTheme(next.fontSize || 14, next.lineHeight)),
-            ],
-        });
+    let applied = settings;
+    let appliedProfileChoice = profileChoice;
+    const applyLiveSettings = (raw) => {
+        const next = resolveProfile(raw, purpose, profileChoice);
+        const profileChanged = next.fieldProfiles !== applied.fieldProfiles || profileChoice !== appliedProfileChoice;
+        const effects = [];
+        const change = (key, compartment, extension) => {
+            if (next[key] !== applied[key]) effects.push(compartment.reconfigure(extension()));
+        };
+        change('theme', themeComp, () => getTheme(next.theme).extension);
+        change('lineWrap', wrapComp, () => next.lineWrap ? EditorView.lineWrapping : []);
+        change('lineNumbers', linesComp, () => next.lineNumbers ? [lineNumbers(), highlightActiveLineGutter()] : []);
+        change('highlightActiveLine', activeLineComp, () => next.highlightActiveLine ? highlightActiveLine() : []);
+        change('bracketMatching', bracketComp, () => next.bracketMatching ? bracketMatching() : []);
+        change('closeBrackets', closeBrComp, () => next.closeBrackets ? closeBrackets() : []);
+        change('indentSize', indentComp, () => indentExt(next.indentSize));
+        change('codeFolding', foldComp, () => foldExt(next.codeFolding));
+        change('autocomplete', autocompleteComp, () => autocompleteExt(next.autocomplete));
+        if (next.fontSize !== applied.fontSize || next.lineHeight !== applied.lineHeight) {
+            effects.push(fontComp.reconfigure(fontTheme(next.fontSize, next.lineHeight)));
+        }
+        applied = next;
+        appliedProfileChoice = profileChoice;
+        if (effects.length) editor.dispatch({ effects });
+        if (toolbar.root.dataset.position !== next.toolbar.position
+            || toolbar.root.hidden !== (!next.toolbar.show || (isMobileDevice() && !next.mobileToolbar))) placeToolbar(next);
+        toolbar.updateProfile();
+        if (!languageChosen && profileChanged) {
+            const id = profileLanguage(raw, purpose, profileChoice, detectLanguage(target, raw));
+            if (id !== desiredLanguage) setLanguage(id);
+        }
     };
-    const offSettings = onSettingsChange(applyLiveSettings);
-    const offLocale = onLocaleChange(() => {
-        host.setAttribute('aria-label', t('cmp.a11y.editor'));
-    });
+    scope.defer(onSettingsChange(applyLiveSettings));
+    scope.defer(watchHostTheme(() => {
+        if (applied.theme === 'auto') editor.dispatch({ effects: themeComp.reconfigure(getTheme('auto').extension) });
+    }));
+    scope.defer(onLocaleChange(() => {
+        editor.contentDOM.setAttribute('aria-label', t('cmp.a11y.editor'));
+    }));
 
     // Remeasure on later size changes (fullscreen, mobile keyboard). rAF-coalesced
     // so bursts cost one measure/frame; disconnected on teardown.
@@ -264,52 +344,49 @@ export function setupCodeMirror(target, dialog) {
         resizeObs = new ResizeObserver(() => {
             if (pending) return;
             pending = true;
-            requestAnimationFrame(() => { pending = false; editor.requestMeasure(); });
+            scope.frame(() => { pending = false; editor.requestMeasure(); });
         });
         resizeObs.observe(host);
+        scope.defer(() => resizeObs.disconnect());
     }
 
-    // Final flush to the source textarea on close, in case a last input event
-    // didn't fire (no lost edits regardless of how the dialog was dismissed).
-    const syncToTarget = () => {
+    scope.defer(() => foldCancel?.());
+    if (dialog && globalThis.visualViewport) {
+        const measureViewport = () => {
+            dialog.style.setProperty('--cmp-viewport-height', `${visualViewport.height}px`);
+            dialog.style.setProperty('--cmp-viewport-width', `${visualViewport.width}px`);
+            dialog.style.setProperty('--cmp-viewport-top', `${visualViewport.offsetTop}px`);
+            dialog.style.setProperty('--cmp-viewport-left', `${visualViewport.offsetLeft}px`);
+            editor.requestMeasure();
+        };
+        scope.listen(visualViewport, 'resize', measureViewport);
+        scope.listen(visualViewport, 'scroll', measureViewport);
+        measureViewport();
+        scope.defer(() => {
+            for (const key of ['height', 'width', 'top', 'left']) dialog.style.removeProperty(`--cmp-viewport-${key}`);
+        });
+    }
+    scope.listen(target, 'input', () => {
+        if (syncing || target.value === editor.state.doc.toString()) return;
+        syncing = true;
         try {
-            const text = editor.state.doc.toString();
-            if (target.value === text) return;
-            syncing = true;
-            target.value = text;
-            target.dispatchEvent(new Event('input', { bubbles: true }));
-        } catch { /* ignore */ } finally {
-            syncing = false;
-        }
-    };
-
-    // Teardown on <dialog> close or DOM detach.
-    const cleanup = () => {
-        syncToTarget();
-        try { foldCancel?.(); } catch { /* ignore */ }
-        try { resizeObs?.disconnect(); } catch { /* ignore */ }
-        try { editor.destroy(); } catch { /* ignore */ }
-        offSettings?.();
-        offLocale?.();
-        toolbar?.destroy?.();
-        ATTACHED.delete(target);
-    };
+            editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: target.value } });
+        } finally { syncing = false; }
+    });
 
     if (dialog) {
-        dialog.addEventListener('close', cleanup, { once: true });
-        const disconnectObs = new MutationObserver(() => {
-            if (!dialog.isConnected) { cleanup(); disconnectObs.disconnect(); }
-        });
-        disconnectObs.observe(dialog.parentNode || document.body, { childList: true, subtree: false });
+        scope.listen(dialog, 'close', cleanup);
     }
 
     return { editor, host, toolbar, cleanup };
+    } catch (error) {
+        cleanup();
+        fail('setup', error);
+        return null;
+    }
 }
 
-function openQuickSettings(editor, host, dialog, applyFn) {
-    const existing = host.querySelector('.cmp--quick-settings');
-    if (existing) { existing.remove(); return; }
-
+function openQuickSettings(host, anchor) {
     const pop = document.createElement('div');
     pop.className = 'cmp--quick-settings';
     pop.setAttribute('role', 'dialog');
@@ -390,11 +467,12 @@ function openQuickSettings(editor, host, dialog, applyFn) {
             </select>
         </label>
     `;
+    ownTranslations(pop);
 
     const themeSel = pop.querySelector('[data-qs="theme"]');
     // Localize both the "Follow SillyTavern" option and all data-i18n spans
     const refreshLabels = () => {
-        pop.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+        translateElements(pop);
         themeSel.options[0].textContent = t('cmp.settings.theme_auto');
     };
     refreshLabels();
@@ -426,7 +504,7 @@ function openQuickSettings(editor, host, dialog, applyFn) {
         const v = el.type === 'checkbox' ? el.checked
             : (el.type === 'number' || el.type === 'range') ? Number(el.value)
             : el.value;
-        applyFn(saveSettings({ [key]: v }));
+        saveSettings({ [key]: v });
     });
 
     // Live slider dragging — push intermediate values so the editor updates in real time
@@ -438,35 +516,26 @@ function openQuickSettings(editor, host, dialog, applyFn) {
         const v = Number(el.value);
         const out = pop.querySelector(`[data-qs-out="${key}"]`);
         if (out) out.textContent = String(v);
-        applyFn(saveSettings({ [key]: v }));
+        saveSettings({ [key]: v });
     });
 
     // Keep popover in sync if the main ST drawer changes these same settings
     const offSync = onSettingsChange((s) => syncFromSettings(s));
+    const offLocale = onLocaleChange(refreshLabels);
 
     // Swallow clicks so the outside-click handler doesn't close us
     pop.addEventListener('click', e => e.stopPropagation());
 
     host.appendChild(pop);
 
-    const close = () => {
-        offSync?.();
-        pop.remove();
-        document.removeEventListener('mousedown', off, true);
-        document.removeEventListener('keydown', onEsc, true);
-    };
-    const off = (e) => { if (!pop.contains(e.target)) close(); };
-    const onEsc = (e) => { if (e.key === 'Escape') close(); };
-    setTimeout(() => {
-        document.addEventListener('mousedown', off, true);
-        document.addEventListener('keydown', onEsc, true);
-    }, 0);
+    return bindPopover(pop, anchor, [offSync, offLocale]);
 }
 
-function openLangPicker(anchor, current, onPick) {
+function openLangPicker(host, anchor, current, onPick) {
     const menu = document.createElement('div');
     menu.className = 'cmp--lang-menu';
     menu.setAttribute('role', 'menu');
+    let close;
     LANGUAGES.forEach(id => {
         const item = document.createElement('button');
         item.type = 'button';
@@ -481,29 +550,48 @@ function openLangPicker(anchor, current, onPick) {
         });
         menu.appendChild(item);
     });
-    document.body.appendChild(menu);
+    host.appendChild(menu);
 
-    // Viewport-safe: flip above anchor / shift left on overflow.
-    const rect = anchor.getBoundingClientRect();
-    const m = menu.getBoundingClientRect();
-    let top = rect.bottom + 6;
-    let left = rect.left;
-    if (left + m.width > innerWidth - 8) left = Math.max(8, innerWidth - m.width - 8);
-    if (top + m.height > innerHeight - 8) top = Math.max(8, rect.top - m.height - 6);
-    menu.style.top = `${top}px`;
-    menu.style.left = `${left}px`;
+    close = bindPopover(menu, anchor);
+    return close;
+}
 
-    const close = () => {
-        menu.remove();
-        document.removeEventListener('mousedown', off, true);
-        document.removeEventListener('keydown', onEsc, true);
-    };
-    const off = (e) => {
-        if (!menu.contains(e.target) && e.target !== anchor) close();
-    };
-    const onEsc = (e) => { if (e.key === 'Escape') close(); };
-    setTimeout(() => {
-        document.addEventListener('mousedown', off, true);
-        document.addEventListener('keydown', onEsc, true);
-    }, 0);
+function openFormatPicker(host, anchor, editor) {
+    const menu = document.createElement('div');
+    menu.className = 'cmp--lang-menu';
+    menu.setAttribute('role', 'menu');
+    let close;
+    for (const format of FORMATS) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'cmp--lang-item';
+        item.setAttribute('role', 'menuitem');
+        item.textContent = t(`cmp.format.${format.id}`);
+        item.addEventListener('click', () => { close(false); formatSelection(editor, format.marker); });
+        menu.appendChild(item);
+    }
+    host.appendChild(menu);
+    close = bindPopover(menu, anchor);
+    return close;
+}
+
+function openProfilePicker(host, anchor, current, onPick) {
+    const menu = document.createElement('div');
+    menu.className = 'cmp--lang-menu';
+    menu.setAttribute('role', 'menu');
+    let close;
+    for (const id of ['auto', 'none', 'prose', 'code']) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'cmp--lang-item';
+        item.setAttribute('role', 'menuitemradio');
+        item.setAttribute('aria-checked', String(id === current));
+        if (id === current) item.setAttribute('aria-current', 'true');
+        item.textContent = t(`cmp.profile.${id}`);
+        item.addEventListener('click', () => { close(); onPick(id); });
+        menu.appendChild(item);
+    }
+    host.appendChild(menu);
+    close = bindPopover(menu, anchor);
+    return close;
 }

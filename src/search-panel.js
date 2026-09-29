@@ -10,28 +10,11 @@ import {
     replaceNext,
     replaceAll,
     closeSearchPanel,
-    SearchCursor,
-    RegExpCursor,
 } from '@codemirror/search';
 import { t, onLocaleChange } from './i18n.js';
 import { isMobileDevice } from './toolbar.js';
-
-function countMatches(state, query) {
-    if (!query.search) return { total: 0, current: 0 };
-    let total = 0, current = 0;
-    const sel = state.selection.main;
-    try {
-        const cursor = query.regexp
-            ? new RegExpCursor(state.doc, query.search, { ignoreCase: !query.caseSensitive }, 0, state.doc.length)
-            : new SearchCursor(state.doc, query.search, 0, state.doc.length,
-                query.caseSensitive ? undefined : (s) => s.toLowerCase());
-        while (!cursor.next().done) {
-            total++;
-            if (cursor.value.from === sel.from && cursor.value.to === sel.to) current = total;
-        }
-    } catch { /* invalid regex */ }
-    return { total, current };
-}
+import { createMatchCounter } from './search-count.js';
+import { createScope } from './lifecycle.js';
 
 function mkIconToggle(iconClass, titleKey, pressed, onToggle) {
     const b = document.createElement('button');
@@ -42,7 +25,7 @@ function mkIconToggle(iconClass, titleKey, pressed, onToggle) {
     const i = document.createElement('i');
     i.className = iconClass;
     b.appendChild(i);
-    b.setAttribute('data-i18n-title', titleKey);
+    b.setAttribute('data-cmp-i18n-title', titleKey);
     b.title = t(titleKey);
     b.setAttribute('aria-label', t(titleKey));
     b.addEventListener('click', (e) => {
@@ -76,7 +59,7 @@ function mkIconBtn(iconClass, titleKey, onClick) {
     const i = document.createElement('i');
     i.className = iconClass;
     b.appendChild(i);
-    b.setAttribute('data-i18n-title', titleKey);
+    b.setAttribute('data-cmp-i18n-title', titleKey);
     b.title = t(titleKey);
     b.setAttribute('aria-label', t(titleKey));
     b.addEventListener('click', (e) => {
@@ -88,6 +71,8 @@ function mkIconBtn(iconClass, titleKey, onClick) {
 }
 
 export function createSearchPanel(view) {
+    const scope = createScope();
+    const countMatches = createMatchCounter();
     const dom = document.createElement('div');
     dom.className = 'cmp-sp';
     dom.setAttribute('role', 'search');
@@ -106,7 +91,8 @@ export function createSearchPanel(view) {
     findInput.type = 'text';
     findInput.className = 'cmp-sp--input';
     findInput.setAttribute('name', 'search');
-    findInput.setAttribute('data-i18n-placeholder', 'cmp.search.find_placeholder');
+    findInput.setAttribute('main-field', 'true');
+    findInput.setAttribute('data-cmp-i18n-placeholder', 'cmp.search.find_placeholder');
     findInput.placeholder = t('cmp.search.find_placeholder');
     findInput.value = initialQ.search || '';
     findInput.spellcheck = false;
@@ -139,7 +125,8 @@ export function createSearchPanel(view) {
         findNext(view);
         updateCount();
     });
-    const bClose = mkIconBtn('fa-solid fa-xmark', 'cmp.search.close', () => closeSearchPanel(view));
+    const close = () => { closeSearchPanel(view); view.focus(); };
+    const bClose = mkIconBtn('fa-solid fa-xmark', 'cmp.search.close', close);
     bClose.classList.add('cmp-sp--close');
     row1Ctrls.append(bPrev, bNext, bClose);
     row1.append(findWrap, row1Ctrls);
@@ -155,7 +142,7 @@ export function createSearchPanel(view) {
     replaceInput.type = 'text';
     replaceInput.className = 'cmp-sp--input';
     replaceInput.setAttribute('name', 'replace');
-    replaceInput.setAttribute('data-i18n-placeholder', 'cmp.search.replace_placeholder');
+    replaceInput.setAttribute('data-cmp-i18n-placeholder', 'cmp.search.replace_placeholder');
     replaceInput.placeholder = t('cmp.search.replace_placeholder');
     replaceInput.value = initialQ.replace || '';
     replaceInput.spellcheck = false;
@@ -171,14 +158,14 @@ export function createSearchPanel(view) {
         replaceNext(view);
         updateCount();
     });
-    bReplace.setAttribute('data-i18n', 'cmp.search.replace_one');
+    bReplace.setAttribute('data-cmp-i18n', 'cmp.search.replace_one');
     const bReplaceAll = mkBtn(t('cmp.search.replace_all'), 'primary', () => {
         commit();
         view.focus();
         replaceAll(view);
         updateCount();
     });
-    bReplaceAll.setAttribute('data-i18n', 'cmp.search.replace_all');
+    bReplaceAll.setAttribute('data-cmp-i18n', 'cmp.search.replace_all');
     row2Ctrls.append(bReplace, bReplaceAll);
     row2.append(replaceWrap, row2Ctrls);
 
@@ -191,22 +178,33 @@ export function createSearchPanel(view) {
             caseSensitive: tCase.classList.contains('cmp-sp--toggle-on'),
             wholeWord: tWord.classList.contains('cmp-sp--toggle-on'),
             regexp: tRegex.classList.contains('cmp-sp--toggle-on'),
+            literal: getSearchQuery(view.state).literal,
+            test: getSearchQuery(view.state).test,
         };
     }
 
     function commit() {
-        view.dispatch({ effects: setSearchQuery.of(new SearchQuery(queryOpts())) });
+        cancelCommit?.();
+        cancelCommit = null;
+        const next = new SearchQuery(queryOpts());
+        if (!getSearchQuery(view.state).eq(next)) view.dispatch({ effects: setSearchQuery.of(next) });
     }
 
     function updateCount() {
         const q = getSearchQuery(view.state);
-        const { total, current } = countMatches(view.state, q);
+        const { total, current, limited, skipped } = countMatches(view.state, q);
+        findInput.setAttribute('aria-invalid', String(!!q.search && !q.valid));
         if (!q.search) {
             count.textContent = '';
             count.classList.remove('cmp-sp--count-nomatch');
             return;
         }
-        if (total === 0) {
+        if (!q.valid || skipped || limited) {
+            count.textContent = !q.valid ? t('cmp.search.invalid_regex')
+                : skipped ? t('cmp.search.count_unavailable')
+                : t('cmp.search.count_limited', { total });
+            count.classList.toggle('cmp-sp--count-nomatch', !q.valid);
+        } else if (total === 0) {
             count.textContent = t('cmp.search.no_results');
             count.classList.add('cmp-sp--count-nomatch');
         } else {
@@ -218,10 +216,10 @@ export function createSearchPanel(view) {
     }
 
     // 80ms debounce; long queries don't thrash large documents.
-    let commitTimer = null;
+    let cancelCommit = null;
     const scheduleCommit = () => {
-        clearTimeout(commitTimer);
-        commitTimer = setTimeout(() => { commit(); updateCount(); }, 80);
+        cancelCommit?.();
+        cancelCommit = scope.timeout(() => { commit(); updateCount(); }, 80);
     };
     findInput.addEventListener('input', scheduleCommit);
     replaceInput.addEventListener('input', scheduleCommit);
@@ -236,7 +234,8 @@ export function createSearchPanel(view) {
             findInput.focus();
         } else if (e.key === 'Escape') {
             e.preventDefault();
-            closeSearchPanel(view);
+            e.stopPropagation();
+            close();
         }
     });
 
@@ -251,14 +250,16 @@ export function createSearchPanel(view) {
             replaceInput.focus();
         } else if (e.key === 'Escape') {
             e.preventDefault();
-            closeSearchPanel(view);
+            e.stopPropagation();
+            close();
         }
     });
 
     dom.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             e.preventDefault();
-            closeSearchPanel(view);
+            e.stopPropagation();
+            close();
         }
     });
 
@@ -269,22 +270,22 @@ export function createSearchPanel(view) {
         replaceInput.setAttribute('aria-label', t('cmp.toolbar.replace'));
         bReplace.textContent = t('cmp.search.replace_one');
         bReplaceAll.textContent = t('cmp.search.replace_all');
-        dom.querySelectorAll('[data-i18n-title]').forEach(el => {
-            const k = el.getAttribute('data-i18n-title');
+        dom.querySelectorAll('[data-cmp-i18n-title]').forEach(el => {
+            const k = el.getAttribute('data-cmp-i18n-title');
             el.title = t(k);
             el.setAttribute('aria-label', t(k));
         });
         updateCount();
     });
 
-    setTimeout(updateCount, 0);
+    scope.timeout(updateCount, 0);
 
     return {
         dom,
         top: !isMobileDevice(),
         mount() {
             // rAF: focus after CM places panel (Firefox mobile cursor fix).
-            requestAnimationFrame(() => {
+            scope.frame(() => {
                 findInput.focus();
                 findInput.select();
             });
@@ -298,11 +299,15 @@ export function createSearchPanel(view) {
                 tCase.classList.toggle('cmp-sp--toggle-on', !!q.caseSensitive);
                 tWord.classList.toggle('cmp-sp--toggle-on', !!q.wholeWord);
                 tRegex.classList.toggle('cmp-sp--toggle-on', !!q.regexp);
+                tCase.setAttribute('aria-pressed', String(q.caseSensitive));
+                tWord.setAttribute('aria-pressed', String(q.wholeWord));
+                tRegex.setAttribute('aria-pressed', String(q.regexp));
                 updateCount();
             }
         },
         destroy() {
-            clearTimeout(commitTimer);
+            scope.destroy();
+            cancelCommit = null;
             offLocale?.();
         },
     };

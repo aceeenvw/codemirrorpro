@@ -4,6 +4,7 @@
 const EVENT = 'codemirrorpro:localechange';
 
 let active = 'en-us';
+let formatter = new Intl.NumberFormat(active);
 const dicts = { 'en-us': {}, 'ru-ru': {} };
 
 const AVAILABLE = [
@@ -19,7 +20,7 @@ function normalize(code) {
     if (!code) return null;
     const c = String(code).toLowerCase().replace('_', '-');
     if (c === 'en' || c.startsWith('en-')) return 'en-us';
-    if (c === 'ru' || c.startsWith('ru-') || c.startsWith('be-') || c === 'uk' || c.startsWith('uk-')) return 'ru-ru';
+    if (c === 'ru' || c.startsWith('ru-')) return 'ru-ru';
     if (AVAILABLE.some(a => a.code === c)) return c;
     return null;
 }
@@ -31,9 +32,8 @@ export function detectLocale(override) {
     }
     try {
         const ctx = globalThis.SillyTavern?.getContext?.();
-        const stLang = ctx?.settings?.language || ctx?.language;
-        const n = normalize(stLang);
-        if (n) return n;
+        const stLang = ctx?.getCurrentLocale?.();
+        if (stLang) return normalize(stLang) || 'en-us';
     } catch { /* ignore */ }
     const navs = (typeof navigator !== 'undefined' && (navigator.languages || [navigator.language])) || [];
     for (const l of navs) {
@@ -47,6 +47,7 @@ export function setLocale(code) {
     const next = normalize(code) || 'en-us';
     if (next === active) return active;
     active = next;
+    formatter = new Intl.NumberFormat(active);
     try {
         window.dispatchEvent(new CustomEvent(EVENT, { detail: { locale: active } }));
     } catch { /* ignore */ }
@@ -54,6 +55,31 @@ export function setLocale(code) {
 }
 
 export function getAvailableLocales() { return AVAILABLE.slice(); }
+
+export function ownTranslations(root) {
+    for (const suffix of ['', '-title', '-placeholder']) {
+        const attribute = `data-i18n${suffix}`;
+        root.querySelectorAll(`[${attribute}]`).forEach(element => {
+            element.setAttribute(`data-cmp-i18n${suffix}`, element.getAttribute(attribute));
+            element.removeAttribute(attribute);
+        });
+    }
+}
+
+export function translateElements(root) {
+    root.querySelectorAll('[data-cmp-i18n]').forEach(element => {
+        element.textContent = t(element.getAttribute('data-cmp-i18n'));
+    });
+    root.querySelectorAll('[data-cmp-i18n-title]').forEach(element => {
+        element.title = t(element.getAttribute('data-cmp-i18n-title'));
+        element.setAttribute('aria-label', element.title);
+    });
+    root.querySelectorAll('input[type="range"], [role="radiogroup"]').forEach(element => {
+        const row = element.closest('.cmp--row, .cmp--slider-row, .cmp--field, .cmp--card-body');
+        const label = row?.querySelector('[data-cmp-i18n]');
+        if (label) element.setAttribute('aria-label', label.textContent);
+    });
+}
 
 export function t(key, params) {
     const d = dicts[active] || {};
@@ -72,6 +98,6 @@ export function onLocaleChange(handler) {
 }
 
 export function formatNumber(n) {
-    try { return new Intl.NumberFormat(active).format(n); }
+    try { return formatter.format(n); }
     catch { return String(n); }
 }

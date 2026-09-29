@@ -1,6 +1,9 @@
 // Language detection (dataset hints → content sniff → default) and
 // eager-inlined CodeMirror language packs, cached on first load.
 
+import { LANGUAGES } from './options.js';
+import { warn } from './log.js';
+export { LANGUAGES } from './options.js';
 const CACHE = new Map();
 
 async function load(id) {
@@ -33,56 +36,62 @@ async function load(id) {
     return CACHE.get(id);
 }
 
-export const LANGUAGES = ['plain', 'css', 'markdown', 'html', 'json', 'javascript'];
+export function getFieldPurpose(textarea) {
+    const hint = `${textarea?.dataset?.for || ''} ${textarea?.name || ''} ${textarea?.id || ''}`.toLowerCase();
+    if (/customcss|custom[_-]?css|\bcss\b/.test(hint)) return 'css';
+    if (/regex|stscript|slash[_-]?commands?/.test(hint)) return 'plain';
+    if (/javascript|\bjs\b/.test(hint)) return 'javascript';
+    if (/\bjson\b|[_-]json/.test(hint)) return 'json';
+    if (/html/.test(hint)) return 'html';
+    if (/desc|personality|scenario|example|first[_-]?mes|system|prompt|note|summary|greeting|character|persona|worldinfo|lorebook|entry[_-]?content/.test(hint)) return 'prose';
+    return null;
+}
 
 export function detectLanguage(textarea, settings) {
-    const datasetFor = (textarea?.dataset?.for || '').toLowerCase();
-    const name = (textarea?.name || '').toLowerCase();
-    const id = (textarea?.id || '').toLowerCase();
-    const hint = `${datasetFor} ${name} ${id}`;
     const enabled = settings?.enabledLanguages || {};
     const pick = (x) => (enabled[x] !== false ? x : null);
-
-    if (/customcss|custom[_-]?css|\bcss\b/.test(hint)) return pick('css') || 'plain';
-    if (/regex|script|code|\bjs\b|javascript/.test(hint)) return pick('javascript') || 'plain';
-    if (/json|worldinfo|\blorebook\b|entries?\b/.test(hint) && looksLikeJSON(textarea?.value)) return pick('json') || 'plain';
-    if (/html/.test(hint) || looksLikeHTML(textarea?.value)) return pick('html') || 'plain';
-    if (/desc|personality|scenario|example|first[_-]?mes|system|prompt|note|summary|greeting|character|persona/.test(hint)) {
-        return pick('markdown') || 'plain';
-    }
+    const purpose = getFieldPurpose(textarea);
+    if (purpose) return purpose === 'prose' ? pick('markdown') || 'plain' : pick(purpose) || 'plain';
     const sniff = sniff200(textarea?.value);
     if (sniff === 'json' && pick('json')) return 'json';
     if (sniff === 'html' && pick('html')) return 'html';
     if (sniff === 'css' && pick('css')) return 'css';
-    return pick(settings?.defaultLanguage || 'markdown') || 'plain';
+    const fallback = LANGUAGES.includes(settings?.defaultLanguage) ? settings.defaultLanguage : 'markdown';
+    return pick(fallback) || 'plain';
 }
 
 function looksLikeJSON(v) {
     if (!v) return false;
     const s = v.trim();
-    return (s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'));
+    if (s.length > 50000 || !/^(?:\{\s*"|\[|\{\s*\})/.test(s) || s.startsWith('{{')) return false;
+    try {
+        const parsed = JSON.parse(s);
+        return parsed !== null && typeof parsed === 'object';
+    } catch { return false; }
 }
 function looksLikeHTML(v) {
     if (!v) return false;
     const s = v.trim();
-    return /^<[a-z!?][\s\S]*>/i.test(s) && /<\/?\w+/.test(s);
+    return /^<!doctype\s+html\b|^<html(?:\s|>)/i.test(s)
+        || /^<(div|p|span|section|article|ul|table|style)\b[^>]*>[\s\S]*<\/\1>/i.test(s);
 }
 function sniff200(v) {
     if (!v) return null;
     const s = v.trim().slice(0, 200);
     if (!s) return null;
-    if (s.startsWith('{') || s.startsWith('[')) return 'json';
-    if (/^<[a-z!?]/i.test(s)) return 'html';
+    if (looksLikeJSON(v)) return 'json';
+    if (looksLikeHTML(v)) return 'html';
     if (/\{[\s\S]*?:[\s\S]*?;[\s\S]*?\}/.test(s) && /[.#][\w-]/.test(s)) return 'css';
     return null;
 }
 
 export async function loadLanguageExtension(id) {
-    if (!id || id === 'plain') return null;
+    if (!LANGUAGES.includes(id) || id === 'plain') return null;
     try {
-        return await load(id);
+        if (!CACHE.has(id)) CACHE.set(id, load(id));
+        return await CACHE.get(id);
     } catch (e) {
-        console.warn('[cmp] language load failed:', id, e);
+        warn(`language ${id}`, e);
         return null;
     }
 }

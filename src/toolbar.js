@@ -1,19 +1,22 @@
 import { openSearchPanel, closeSearchPanel, searchPanelOpen } from '@codemirror/search';
-import { undo, redo, selectAll } from '@codemirror/commands';
-import { t, onLocaleChange, formatNumber } from './i18n.js';
+import { undo, redo, selectAll, isolateHistory } from '@codemirror/commands';
+import { t, onLocaleChange, formatNumber, translateElements } from './i18n.js';
+import { createScope } from './lifecycle.js';
+import { createTokenCounter } from './token-count.js';
+import { warn } from './log.js';
 
 function toast(type, key, params) {
     const msg = t(key, params);
     try { globalThis.toastr?.[type]?.(msg); }
-    catch { console.log('[cmp]', msg); }
+    catch (error) { warn('toast', error); }
 }
 
 function isMobileDevice() {
     try {
         const ctx = globalThis.SillyTavern?.getContext?.();
         const im = ctx?.isMobile;
-        if (typeof im === 'function') return !!im();
-        if (typeof im === 'boolean') return im;
+        if (typeof im === 'function' && im()) return true;
+        if (im === true) return true;
     } catch { /* ignore */ }
     return (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)
         || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || '');
@@ -28,10 +31,10 @@ function mkBtn(iconClass, labelKey, handler, extraClass = '') {
     icon.className = String(iconClass);
     const label = document.createElement('span');
     label.className = 'cmp--btn-label';
-    label.setAttribute('data-i18n', String(labelKey));
+    label.setAttribute('data-cmp-i18n', String(labelKey));
     label.textContent = t(labelKey);
     b.append(icon, label);
-    b.setAttribute('data-i18n-title', String(labelKey));
+    b.setAttribute('data-cmp-i18n-title', String(labelKey));
     b.setAttribute('aria-label', t(labelKey));
     b.title = t(labelKey);
     b.addEventListener('click', (e) => {
@@ -42,29 +45,32 @@ function mkBtn(iconClass, labelKey, handler, extraClass = '') {
     return b;
 }
 
-async function pasteIntoEditor(editor) {
+async function pasteIntoEditor(editor, scope) {
+    const doc = editor.state.doc;
+    const sel = editor.state.selection.main;
     try {
         const text = await navigator.clipboard.readText();
+        if (!scope.alive || editor.state.doc !== doc) return;
         if (!text) { toast('info', 'cmp.toast.paste_empty'); return; }
-        const sel = editor.state.selection.main;
         editor.dispatch({
             changes: { from: sel.from, to: sel.to, insert: text },
             selection: { anchor: sel.from + text.length },
             scrollIntoView: true,
+            annotations: isolateHistory.of('full'),
         });
         editor.focus();
         toast('success', 'cmp.toast.pasted');
     } catch {
-        toast('error', 'cmp.toast.paste_denied');
+        if (scope.alive) toast('error', 'cmp.toast.paste_denied');
     }
 }
 
-async function copyAll(editor) {
+async function copyAll(editor, scope) {
     try {
         await navigator.clipboard.writeText(editor.state.doc.toString());
-        toast('success', 'cmp.toast.copied');
+        if (scope.alive) toast('success', 'cmp.toast.copied');
     } catch {
-        toast('error', 'cmp.toast.copy_failed');
+        if (scope.alive) toast('error', 'cmp.toast.copy_failed');
     }
 }
 
@@ -76,40 +82,16 @@ function clearAll(editor) {
         changes: { from: 0, to: len, insert: '' },
         selection: { anchor: 0 },
         scrollIntoView: true,
+        annotations: isolateHistory.of('full'),
     });
     editor.focus();
     toast('success', 'cmp.toast.cleared');
 }
 
-// Fullscreen: outrank ST's inline dialog styles via !important.
-// Snapshot previous style so exit restores ST's positioning cleanly.
-const SAVED_INLINE = new WeakMap();
-const FS_PROPS = [
-    ['width', '100dvw'], ['height', '100dvh'],
-    ['max-width', '100dvw'], ['max-height', '100dvh'],
-    ['min-width', '100dvw'], ['min-height', '100dvh'],
-    ['top', '0'], ['left', '0'], ['right', '0'], ['bottom', '0'],
-    ['margin', '0'], ['transform', 'none'], ['inset', '0'],
-];
-
-function applyFullscreenInline(dialog) {
-    if (!SAVED_INLINE.has(dialog)) {
-        SAVED_INLINE.set(dialog, dialog.getAttribute('style') || '');
-    }
-    for (const [k, v] of FS_PROPS) dialog.style.setProperty(k, v, 'important');
-}
-
-function restoreInline(dialog) {
-    const saved = SAVED_INLINE.get(dialog);
-    if (saved == null) return;
-    if (saved) dialog.setAttribute('style', saved);
-    else dialog.removeAttribute('style');
-    SAVED_INLINE.delete(dialog);
-}
-
 // Returns { root, status, destroy, updateStatus, updateLangChip,
 // rerenderLabels, syncSearchState }.
-export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLanguageClick, onFullscreenChange, getLanguage }) {
+export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLanguageClick, onFullscreenChange, getLanguage, markdownEnabled, onFormatClick, getProfile, onProfileClick }) {
+    const scope = createScope();
     const root = document.createElement('div');
     root.className = 'cmp--toolbar';
     root.dataset.position = settings.toolbar?.position || 'top';
@@ -143,28 +125,16 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         }
     });
     const bSelectAll = mkBtn('fa-solid fa-object-group', 'cmp.toolbar.select_all', () => { selectAll(editor); editor.focus(); });
-    const bPaste = mkBtn('fa-solid fa-paste', 'cmp.toolbar.paste', () => pasteIntoEditor(editor));
-    const bCopy = mkBtn('fa-solid fa-copy', 'cmp.toolbar.copy', () => copyAll(editor));
+    const bPaste = mkBtn('fa-solid fa-paste', 'cmp.toolbar.paste', () => pasteIntoEditor(editor, scope));
+    const bCopy = mkBtn('fa-solid fa-copy', 'cmp.toolbar.copy', () => copyAll(editor, scope));
     const bClear = mkBtn('fa-solid fa-eraser', 'cmp.toolbar.clear', () => clearAll(editor), 'cmp--btn-danger');
 
-    let fsGuard = null;
-    // Drive fullscreen to an explicit state and keep the button visuals + guard in
-    // sync. Used by the toolbar button and by editor.js to restore a remembered state.
     const setFullscreen = (on, { notify = true } = {}) => {
         const isOn = dialog.classList.contains('cmp--fullscreen');
         if (on === isOn) { applyFsButton(on); return on; }
-        on ? (dialog.classList.add('cmp--fullscreen'), applyFullscreenInline(dialog))
-           : (dialog.classList.remove('cmp--fullscreen'), restoreInline(dialog));
+        dialog.classList.toggle('cmp--fullscreen', on);
         applyFsButton(on);
-        fsGuard?.disconnect();
-        fsGuard = null;
-        if (on) {
-            fsGuard = new MutationObserver(() => {
-                if (!dialog.classList.contains('cmp--fullscreen')) return;
-                if (dialog.style.width !== '100dvw') applyFullscreenInline(dialog);
-            });
-            fsGuard.observe(dialog, { attributes: true, attributeFilter: ['style', 'class'] });
-        }
+        editor.requestMeasure();
         if (notify) onFullscreenChange?.(on);
         return on;
     };
@@ -175,16 +145,44 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         bFull.querySelector('i').className = on ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
         bFull.setAttribute('aria-pressed', String(on));
         bFull.classList.toggle('cmp--btn-active', on);
-        bFull.setAttribute('data-i18n-title', on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
+        bFull.setAttribute('data-cmp-i18n-title', on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
         bFull.title = t(on ? 'cmp.toolbar.fullscreen_exit' : 'cmp.toolbar.fullscreen');
+        bFull.setAttribute('aria-label', bFull.title);
     }
     const bSettings = mkBtn('fa-solid fa-gear', 'cmp.toolbar.settings', () => onSettingsClick?.(bSettings), 'cmp--btn-accent');
+    const bFormat = mkBtn('fa-solid fa-bold', 'cmp.toolbar.format', () => onFormatClick?.(bFormat));
+    const bProfile = mkBtn('fa-solid fa-sliders', 'cmp.toolbar.profile', () => onProfileClick?.(bProfile));
+    const bTokens = mkBtn('fa-solid fa-hashtag', 'cmp.toolbar.tokens', () => tokenCounter.run());
+    const tokenValue = document.createElement('span');
+    tokenValue.className = 'cmp--token-value';
+    bTokens.appendChild(tokenValue);
+    const announcement = document.createElement('span');
+    announcement.className = 'cmp--sr-only';
+    announcement.setAttribute('role', 'status');
+    announcement.setAttribute('aria-live', 'polite');
+    root.appendChild(announcement);
+    let tokenState;
+    const renderToken = () => {
+        if (!tokenState) return;
+        const message = t(`cmp.tokens.${tokenState.status}`, { count: formatNumber(tokenState.count || 0) });
+        tokenValue.textContent = message;
+        bTokens.title = message;
+        bTokens.setAttribute('aria-label', `${t('cmp.toolbar.tokens')}: ${message}`);
+        bTokens.disabled = tokenState.busy;
+        bTokens.setAttribute('aria-busy', String(tokenState.busy));
+        announcement.textContent = message;
+    };
+    const tokenCounter = createTokenCounter({ getDoc: () => editor.state.doc,
+        getCounter: () => globalThis.SillyTavern?.getContext?.()?.getTokenCountAsync,
+        onState: state => { tokenState = state; renderToken(); } });
+    scope.defer(tokenCounter.destroy);
 
     const groups = [
         [bUndo, bRedo],
         [bSearch],
+        [bFormat, bTokens],
         [bSelectAll, bPaste, bCopy, bClear],
-        [bFull, bSettings],
+        [bProfile, bFull, bSettings],
     ];
     groups.forEach((group, idx) => {
         if (idx > 0) {
@@ -215,9 +213,7 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         a.type = 'button';
         a.className = `cmp--scroll-arrow cmp--scroll-${dir}`;
         a.setAttribute('formnovalidate', '');
-        a.setAttribute('tabindex', '-1');
-        a.setAttribute('aria-hidden', 'true');
-        a.setAttribute('data-i18n-title', labelKey);
+        a.setAttribute('data-cmp-i18n-title', labelKey);
         a.title = t(labelKey);
         a.setAttribute('aria-label', t(labelKey));
         const i = document.createElement('i');
@@ -249,11 +245,15 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         const r = x < maxScroll - 1;
         if (l !== lastL) { lastL = l; root.toggleAttribute('data-overflow-left', l); }
         if (r !== lastR) { lastR = r; root.toggleAttribute('data-overflow-right', r); }
+        arrowLeft.disabled = !l;
+        arrowRight.disabled = !r;
+        arrowLeft.tabIndex = l ? 0 : -1;
+        arrowRight.tabIndex = r ? 0 : -1;
     };
     const onScroll = () => {
         if (scrollPending) return;
         scrollPending = true;
-        requestAnimationFrame(() => { scrollPending = false; applyOverflow(); });
+        scope.frame(() => { scrollPending = false; applyOverflow(); });
     };
     // Refresh cached geometry, then re-evaluate. For resize/mount.
     const updateOverflow = () => {
@@ -268,9 +268,11 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
         arrowResizeObs = new ResizeObserver(() => {
             if (pending) return;
             pending = true;
-            requestAnimationFrame(() => { pending = false; updateOverflow(); });
+            scope.frame(() => { pending = false; updateOverflow(); });
         });
         arrowResizeObs.observe(track);
+        arrowResizeObs.observe(btnGroup);
+        arrowResizeObs.observe(langChip);
     }
 
     track.appendChild(langChip);
@@ -280,21 +282,33 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     root.appendChild(arrowRight);
 
     function updateLangChip() {
+        bFormat.hidden = !markdownEnabled?.();
         const id = getLanguage?.() || 'plain';
         const label = id === 'plain' ? t('cmp.settings.language_plain') : id.toUpperCase();
         langChip.querySelector('.cmp--lang-chip-text').textContent = label;
+        scope.frame(updateOverflow);
     }
 
+    let countedDoc;
+    let words = 0;
     function updateStatus() {
+        if (isMobileDevice()) { status.textContent = ''; return; }
         const sel = editor.state.selection.main;
         const line = editor.state.doc.lineAt(sel.head);
         const col = sel.head - line.from + 1;
         const chars = editor.state.doc.length;
-        const doc = editor.state.doc.toString();
-        const m = doc.match(/\S+/g);
-        const words = m ? m.length : 0;
+        if (countedDoc !== editor.state.doc) {
+            countedDoc = editor.state.doc;
+            words = null;
+            if (chars <= 250000) {
+                const text = countedDoc.toString();
+                words = 0;
+                const cursor = /\S+/g;
+                while (cursor.exec(text)) words++;
+            }
+        }
         const text = `${t('cmp.status.position', { line: line.number, col })}`
-            + ` · ${t('cmp.status.words', { count: formatNumber(words) })}`
+            + ` · ${words === null ? t('cmp.status.words_unavailable') : t('cmp.status.words', { count: formatNumber(words) })}`
             + ` · ${t('cmp.status.chars', { count: formatNumber(chars) })}`;
         status.textContent = text;
     }
@@ -306,38 +320,40 @@ export function buildToolbar({ editor, dialog, settings, onSettingsClick, onLang
     }
 
     function rerenderLabels() {
-        root.querySelectorAll('[data-i18n]').forEach(el => {
-            el.textContent = t(el.getAttribute('data-i18n'));
-        });
-        root.querySelectorAll('[data-i18n-title]').forEach(el => {
-            const k = el.getAttribute('data-i18n-title');
-            el.title = t(k);
-            el.setAttribute('aria-label', t(k));
-        });
+        translateElements(root);
         updateLangChip();
+        updateProfile();
+        renderToken();
         updateStatus();
+        scope.frame(updateOverflow);
     }
     rerenderLabels();
     // Initial read once laid out.
-    requestAnimationFrame(updateOverflow);
+    scope.frame(updateOverflow);
 
     const offLocale = onLocaleChange(rerenderLabels);
+    function updateProfile() {
+        const id = getProfile?.() || 'none';
+        bProfile.classList.toggle('cmp--btn-active', id !== 'none');
+        bProfile.setAttribute('aria-label', `${t('cmp.toolbar.profile')}: ${t(`cmp.profile.${id}`)}`);
+        bProfile.title = bProfile.getAttribute('aria-label');
+    }
 
     function destroy() {
+        if (!scope.alive) return;
+        scope.destroy();
         offLocale?.();
-        fsGuard?.disconnect();
-        fsGuard = null;
         try { arrowResizeObs?.disconnect(); } catch { /* ignore */ }
         arrowResizeObs = null;
         track.removeEventListener('scroll', onScroll);
         if (dialog?.classList?.contains('cmp--fullscreen')) {
             dialog.classList.remove('cmp--fullscreen');
-            restoreInline(dialog);
         }
         root.remove();
     }
 
-    return { root, status, destroy, updateStatus, updateLangChip, rerenderLabels, syncSearchState, setFullscreen, updateOverflow };
+    return { root, status, destroy, updateStatus, updateLangChip, rerenderLabels, syncSearchState, setFullscreen, updateOverflow, updateProfile,
+        invalidateTokenCount: tokenCounter.invalidate };
 }
 
 export { isMobileDevice };

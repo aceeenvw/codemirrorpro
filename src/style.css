@@ -1,30 +1,24 @@
 /* ⊹ CODE MIRROR PRO ⊹ styles. `cmp--` prefix; legacy .codemirror-host kept
    for backward-compat with upstream selectors; uses ST CSS variables. */
 
-/* Dialog sizing — :has modern, .cmp--active-dialog fallback for Firefox ≤120 (upstream bug #14). */
-dialog.popup:has(.codemirror-host),
+/* Expanded editor dialog. */
 dialog.popup.cmp--active-dialog {
     width: unset;
 }
 
-/* Fullscreen: CSS arms both the dialog element and ST's inner wrappers.
-   JS paired at toolbar.js applies !important inline props to outrank ST. */
+/* Keep the expanded editor above the mobile keyboard. */
 dialog.popup.cmp--fullscreen {
-    width: 100dvw !important;
-    height: 100dvh !important;
-    max-width: 100dvw !important;
-    max-height: 100dvh !important;
-    min-width: 100dvw !important;
-    min-height: 100dvh !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
+    width: var(--cmp-viewport-width, 100dvw) !important;
+    height: var(--cmp-viewport-height, 100dvh) !important;
+    max-width: var(--cmp-viewport-width, 100dvw) !important;
+    max-height: var(--cmp-viewport-height, 100dvh) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
     margin: 0 !important;
-    padding: 8px !important;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)) !important;
     border-radius: 0 !important;
     transform: none !important;
-    inset: 0 !important;
+    inset: var(--cmp-viewport-top, 0px) auto auto var(--cmp-viewport-left, 0px) !important;
     box-sizing: border-box !important;
 }
 
@@ -57,6 +51,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     display: flex;
     flex-direction: column;
     position: relative;
+    min-height: 0;
 }
 
 .codemirror-host .cm-editor {
@@ -83,23 +78,11 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-.codemirror-host .cm-editor.cm-focused .cm-selectionLayer .cm-selectionBackground,
-.codemirror-host .cm-editor .cm-selectionBackground {
-    background: rgba(200, 200, 200, 0.15);
-}
-
-.codemirror-host .cm-editor .cm-cursor {
-    border-left-color: var(--SmartThemeBodyColor);
-}
-
 .codemirror-host .cm-editor input[type="checkbox"] {
     display: inline-flex;
 }
 
 .codemirror-host .cm-editor .cm-panels {
-    background-color: var(--SmartThemeBlurTintColor);
-    color: var(--SmartThemeBodyColor);
-    border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 5px;
     position: sticky;
     z-index: 3;
@@ -135,6 +118,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 
 /* ── Toolbar shell ────────────────────────────────────────────── */
 .cmp--toolbar {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -151,6 +135,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     top: 0;
     z-index: 4;
 }
+.cmp--toolbar[hidden] { display: none; }
 
 .cmp--toolbar[data-position="bottom"] {
     border-bottom: none;
@@ -256,7 +241,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 }
 
 /* Touch: larger targets + stronger fade. */
-.cmp--toolbar.cmp--mobile .cmp--scroll-arrow { width: 26px; height: 26px; }
+.cmp--toolbar.cmp--mobile .cmp--scroll-arrow { width: 44px; height: 44px; }
 .cmp--toolbar.cmp--mobile .cmp--scroll-arrow i { font-size: 12px; }
 .cmp--toolbar.cmp--mobile[data-overflow-left]  .cmp--toolbar-track { --cmp-fade-l: 28px; }
 .cmp--toolbar.cmp--mobile[data-overflow-right] .cmp--toolbar-track { --cmp-fade-r: 28px; }
@@ -275,7 +260,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     display: flex;
     gap: 4px;
     align-items: center;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
 }
 
@@ -503,7 +488,6 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 
 /* Mobile: avoid iOS auto-zoom on input focus */
 @media (pointer: coarse) {
-    .codemirror-host .cm-editor .cm-content,
     .codemirror-host .cm-editor .cm-textfield {
         font-size: 16px;
     }
@@ -521,10 +505,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     opacity: 1;
 }
 .codemirror-host .cm-foldPlaceholder {
-    background: color-mix(in srgb, var(--SmartThemeBodyColor) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 28%, transparent);
     border-radius: 4px;
-    color: var(--SmartThemeBodyColor);
     margin: 0 2px;
     padding: 0 4px;
 }
@@ -551,10 +532,6 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 .codemirror-host .cm-tooltip-autocomplete > ul > li {
     padding: 3px 8px;
     line-height: 1.5;
-}
-.codemirror-host .cm-tooltip-autocomplete > ul > li[aria-selected] {
-    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8ab4f8) 30%, transparent);
-    color: var(--SmartThemeBodyColor);
 }
 @media (pointer: coarse) {
     /* Readable + tappable completion rows; ≥16px avoids iOS focus-zoom shifts. */
@@ -626,9 +603,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 
 /* ── Quick settings popover ────────────────────────────────────── */
 .cmp--quick-settings {
-    position: absolute;
-    top: 50px;
-    right: 10px;
+    position: fixed;
     background: var(--SmartThemeBlurTintColor, rgba(20,20,20,0.96));
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
@@ -640,7 +615,7 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    min-width: 260px;
+    min-width: min(260px, calc(100dvw - 16px));
     max-width: 320px;
     animation: cmp-pop-in 140ms cubic-bezier(0.2, 0, 0, 1);
     transform-origin: top right;
@@ -1614,8 +1589,8 @@ dialog.popup.cmp--fullscreen .codemirror-host {
 }
 
 .cmp-sp--mobile .cmp-sp--toggle {
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 44px;
+    min-height: 44px;
     font-size: 13px;
 }
 
@@ -1638,19 +1613,9 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     font-size: 12px;
 }
 
-/* Hide the default CM6 search panel styling in favor of ours. */
-.codemirror-host .cm-panel.cm-search {
-    padding: 0;
-    background: transparent;
-    border: none;
-}
-
-.codemirror-host .cm-panel.cm-search > :not(.cmp-sp) {
-    display: none;
-}
-
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
+    .cmp--lang-menu, .cmp--quick-settings { animation: none; }
     .cmp-sp { animation: none; }
     .cmp-sp--toggle,
     .cmp-sp--iconbtn,
@@ -1662,4 +1627,32 @@ dialog.popup.cmp--fullscreen .codemirror-host {
     .cmp-sp--btn:active {
         transform: none;
     }
+}
+
+.cmp--lang-menu, .cmp--quick-settings {
+    margin: 0;
+    inset: auto;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    color: var(--SmartThemeBodyColor);
+}
+.cmp--quick-settings input:focus-visible,
+.cmp--settings input[type="range"]:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #8ab4f8);
+    outline-offset: 3px;
+}
+.cmp--btn[hidden] { display: none; }
+.cmp--token-value { font-size: 12px; white-space: nowrap; }
+.cmp--sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.cmp-macro-delimiter { font-weight: 600; }
+.cmp-macro-name { text-decoration: underline; text-underline-offset: 3px; }
+.cmp--statusbar { opacity: 1; }
+.cmp--statusbar .cmp--status { opacity: 1; }
+@media (pointer: coarse), (width <= 600px) {
+    .cmp--scroll-arrow { width: 44px; min-width: 44px; min-height: 44px; }
+    .cmp--lang-chip, .cmp--lang-item { min-height: 44px; }
+    .codemirror-host .cm-tooltip-autocomplete > ul > li { min-height: 44px; }
+    .cmp--statusbar { display: none; }
+    .cmp--quick-settings .cmp--row { min-height: 44px; }
 }
