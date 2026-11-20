@@ -118,6 +118,13 @@ try {
     globalThis.CodeMirrorPro = Object.freeze({
         version: META.version,
         author: META.author,
+        selectRange(target, from, to) {
+            const view = editors.get(target)?.editor;
+            if (!view || !Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from || to > view.state.doc.length) return false;
+            view.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true });
+            view.focus();
+            return true;
+        },
         stopObserver,
         cleanup,
     });
